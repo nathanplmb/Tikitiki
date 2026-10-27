@@ -216,11 +216,27 @@ export const PartyPlannerView: React.FC<PartyPlannerViewProps> = ({
                   onClick={() => onSelectCocktail(recipe)}
                   className="cursor-pointer p-4 rounded-2xl glass-panel border border-white/10 hover:border-white/20 transition-all flex items-center gap-3"
                 >
-                  <img
-                    src={recipe.imageUrl}
-                    alt={recipe.name}
-                    className="w-14 h-14 rounded-xl object-cover shrink-0"
-                  />
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 relative flex items-center justify-center">
+                    <img
+                      src={recipe.imageUrl}
+                      alt={recipe.name}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        if (target.nextElementSibling) {
+                          (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                        }
+                      }}
+                      className="w-full h-full object-cover shrink-0"
+                    />
+                    <div 
+                      style={{ display: 'none' }}
+                      className="w-full h-full bg-gradient-to-tr from-purple-950/60 via-[#0A0C14] to-black items-center justify-center"
+                    >
+                      <Wine className="w-6 h-6 text-purple-300/40" />
+                    </div>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-mono text-purple-300 uppercase">
                       {recipe.type}
@@ -240,11 +256,27 @@ export const PartyPlannerView: React.FC<PartyPlannerViewProps> = ({
                   onClick={() => onSelectCocktail(partyPlan.mocktailRecipe!)}
                   className="cursor-pointer p-4 rounded-2xl glass-panel border border-emerald-500/20 hover:border-emerald-500/40 transition-all flex items-center gap-3"
                 >
-                  <img
-                    src={partyPlan.mocktailRecipe.imageUrl}
-                    alt={partyPlan.mocktailRecipe.name}
-                    className="w-14 h-14 rounded-xl object-cover shrink-0"
-                  />
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 border border-emerald-500/20 shrink-0 relative flex items-center justify-center">
+                    <img
+                      src={partyPlan.mocktailRecipe.imageUrl}
+                      alt={partyPlan.mocktailRecipe.name}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        if (target.nextElementSibling) {
+                          (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                        }
+                      }}
+                      className="w-full h-full object-cover shrink-0"
+                    />
+                    <div 
+                      style={{ display: 'none' }}
+                      className="w-full h-full bg-gradient-to-tr from-emerald-950/60 via-[#0A0C14] to-black items-center justify-center"
+                    >
+                      <Leaf className="w-6 h-6 text-emerald-300/40" />
+                    </div>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <span className="text-[10px] font-mono text-emerald-300 uppercase">
                       Option Mocktail 0.0%

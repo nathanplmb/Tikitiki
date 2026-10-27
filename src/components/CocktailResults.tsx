@@ -7,7 +7,8 @@ import {
   Scale, 
   RotateCcw,
   Sparkles,
-  Info
+  Info,
+  Wine
 } from 'lucide-react';
 import { CocktailRecipe } from '../types/cocktail';
 import { sounds } from '../utils/audio';
@@ -32,6 +33,7 @@ export const CocktailResults: React.FC<CocktailResultsProps> = ({
   demoNotice,
 }) => {
   const [selectedForCompare, setSelectedForCompare] = useState<CocktailRecipe[]>([]);
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const handleCompareClick = (recipe: CocktailRecipe, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,38 +50,46 @@ export const CocktailResults: React.FC<CocktailResultsProps> = ({
     }
   };
 
-  const getCardStyle = (type: string) => {
+  const getStyleTheme = (type: string) => {
     switch (type) {
       case 'consensuelle':
         return {
           label: 'La Consensuelle',
-          badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
+          badgeText: 'text-emerald-300',
+          accentBorder: 'hover:border-emerald-500/30',
+          gradientBg: 'from-emerald-950/40 via-[#0A0C14] to-black',
         };
       case 'signature':
         return {
           label: 'La Signature',
-          badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/25',
+          badgeText: 'text-purple-300',
+          accentBorder: 'hover:border-purple-500/30',
+          gradientBg: 'from-purple-950/40 via-[#0A0C14] to-black',
         };
       case 'audacieuse':
       default:
         return {
           label: 'L’Audacieuse',
-          badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/25',
+          badgeText: 'text-amber-300',
+          accentBorder: 'hover:border-amber-500/30',
+          gradientBg: 'from-amber-950/40 via-[#0A0C14] to-black',
         };
     }
   };
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Top Banner */}
+    <div className="space-y-6 pb-24 pt-2">
+      {/* Top Header */}
       <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <h1 className="font-display font-bold text-2xl text-white">
-            Créations MIXLAB
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-purple-300">Formulations Validées</span>
+            <span aria-hidden="true">·</span>
+            <span>3 profils sur-mesure</span>
+          </div>
+          <h1 className="font-display font-bold text-2xl sm:text-3xl text-white tracking-tight">
+            Vos créations MIXLAB
           </h1>
-          <p className="text-xs text-slate-400">
-            3 recettes équilibrées conçues selon tes critères.
-          </p>
         </div>
 
         <button
@@ -87,43 +97,44 @@ export const CocktailResults: React.FC<CocktailResultsProps> = ({
             sounds.playTap();
             onRestartLab();
           }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition-all"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 border border-white/10 transition-all shrink-0"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Modifier</span>
+          <span>Modifier critères</span>
         </button>
       </div>
 
-      {/* Notice if demo/fallback */}
+      {/* Notice if demo / fallback */}
       {demoNotice && (
-        <div className="p-3 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-slate-300 flex items-center gap-2">
+        <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xs text-slate-300 flex items-center gap-2.5">
           <Info className="w-4 h-4 text-purple-400 shrink-0" />
           <span>{demoNotice}</span>
         </div>
       )}
 
-      {/* Compare helper */}
+      {/* Active comparison helper */}
       {selectedForCompare.length === 1 && (
-        <div className="p-3 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-between text-xs text-white">
-          <div className="flex items-center gap-2">
-            <Scale className="w-4 h-4 text-purple-300" />
-            <span>Sélectionné : <strong>{selectedForCompare[0].name}</strong>. Choisis une 2e recette à comparer.</span>
+        <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-between text-xs text-white">
+          <div className="flex items-center gap-2.5">
+            <Scale className="w-4 h-4 text-purple-300 shrink-0" />
+            <span>Sélectionné : <strong className="font-semibold text-purple-200">{selectedForCompare[0].name}</strong>. Cliquez sur une 2e création pour les comparer côte à côte.</span>
           </div>
           <button
             onClick={() => setSelectedForCompare([])}
-            className="text-[10px] text-slate-400 hover:text-white"
+            className="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-all shrink-0"
           >
             Annuler
           </button>
         </div>
       )}
 
-      {/* Cards List */}
-      <div className="space-y-4">
+      {/* Cocktail Cards Grid */}
+      <div className="grid grid-cols-1 gap-5">
         {recipes.map((recipe, index) => {
-          const style = getCardStyle(recipe.type);
+          const theme = getStyleTheme(recipe.type);
           const isFav = favorites.some((f) => f.id === recipe.id);
           const isComparing = selectedForCompare.some((r) => r.id === recipe.id);
+          const isImgBroken = failedImages[recipe.id] || !recipe.imageUrl;
 
           return (
             <motion.div
@@ -135,92 +146,114 @@ export const CocktailResults: React.FC<CocktailResultsProps> = ({
                 sounds.playGlassClink();
                 onSelectCocktail(recipe);
               }}
-              className={`cursor-pointer group rounded-3xl overflow-hidden glass-panel border transition-all ${
+              className={`cursor-pointer group rounded-3xl overflow-hidden glass-panel border transition-all duration-300 ${
                 isComparing
-                  ? 'border-purple-400 ring-2 ring-purple-400/20 shadow-lg'
-                  : 'border-white/10 hover:border-white/20'
+                  ? 'border-purple-400 ring-2 ring-purple-400/25 shadow-2xl'
+                  : `border-white/10 ${theme.accentBorder} shadow-lg`
               }`}
             >
-              <div className="relative aspect-[16/9] overflow-hidden">
-                <img
-                  src={recipe.imageUrl}
-                  alt={recipe.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0C0E18] via-[#0C0E18]/30 to-transparent" />
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
+                {/* Visual Section */}
+                <div className="md:col-span-5 relative aspect-[16/10] md:aspect-auto overflow-hidden bg-black/40">
+                  {!isImgBroken ? (
+                    <img
+                      src={recipe.imageUrl}
+                      alt={recipe.name}
+                      onError={() => setFailedImages((prev) => ({ ...prev, [recipe.id]: true }))}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      loading="lazy"
+                    />
+                  ) : (
+                    /* High-End Styled Studio SVG Fallback Container */
+                    <div className={`w-full h-full min-h-[180px] bg-gradient-to-tr ${theme.gradientBg} flex items-center justify-center relative overflow-hidden`}>
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/[0.08] via-transparent to-transparent" />
+                      <Wine className="w-16 h-16 text-white/40 group-hover:scale-110 transition-transform duration-500" />
+                      <span className="absolute bottom-3 text-[10px] font-mono tracking-wider uppercase text-white/50">
+                        {recipe.glassType}
+                      </span>
+                    </div>
+                  )}
 
-                {/* Top Badges */}
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium border backdrop-blur-md ${style.badgeClass}`}>
-                    {style.label}
-                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A0C14] via-transparent to-transparent md:hidden" />
 
+                  {/* Bookmark Button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       sounds.playTap();
                       onToggleFavorite(recipe);
                     }}
-                    className={`p-2 rounded-full backdrop-blur-md transition-all ${
+                    className={`absolute top-3 right-3 p-2.5 rounded-full backdrop-blur-xl border transition-all ${
                       isFav
-                        ? 'bg-purple-600 text-white shadow-sm'
-                        : 'bg-black/40 text-slate-300 hover:text-white'
+                        ? 'bg-purple-600 text-white border-purple-400 shadow-md'
+                        : 'bg-black/50 text-slate-300 hover:text-white border-white/10 hover:bg-black/70'
                     }`}
+                    title="Sauvegarder dans ma collection"
+                    aria-label="Sauvegarder la recette"
                   >
-                    <Bookmark className={`w-3.5 h-3.5 ${isFav ? 'fill-white' : ''}`} />
+                    <Bookmark className={`w-4 h-4 ${isFav ? 'fill-white' : ''}`} />
                   </button>
                 </div>
 
-                {/* Bottom glass stats */}
-                <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300">
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md">
-                    <Clock className="w-3 h-3 text-slate-400" />
-                    <span>{recipe.prepTimeMinutes} min</span>
+                {/* Content Section */}
+                <div className="md:col-span-7 p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    {/* Unboxed Metadata Header */}
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <span className={`font-semibold ${theme.badgeText}`}>{theme.label}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="flex items-center gap-1 font-mono">
+                        <Clock className="w-3 h-3 text-slate-500" />
+                        {recipe.prepTimeMinutes} min
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono text-[11px] text-slate-300">{recipe.alcoholEstimate}</span>
+                    </div>
+
+                    <h3 className="font-display font-bold text-xl text-white group-hover:text-purple-200 transition-colors">
+                      {recipe.name}
+                    </h3>
+
+                    <p className="text-xs text-slate-400 italic">
+                      « {recipe.tagline} »
+                    </p>
+
+                    <p className="text-xs sm:text-sm text-slate-300 leading-relaxed line-clamp-2 pt-1">
+                      {recipe.description}
+                    </p>
                   </div>
 
-                  <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md font-mono text-[10px]">
-                    {recipe.alcoholEstimate}
-                  </span>
-                </div>
-              </div>
+                  {/* Ingredients Unboxed Pills */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[11px] text-slate-400 font-medium">Composition :</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recipe.ingredients.map((ing, i) => (
+                        <span key={i} className="px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/5 text-[11px] text-slate-300">
+                          {ing.amount} {ing.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Card Body */}
-              <div className="p-4 space-y-3">
-                <div>
-                  <h3 className="font-display font-bold text-lg text-white group-hover:text-purple-200 transition-colors">
-                    {recipe.name}
-                  </h3>
-                  <p className="text-xs text-slate-400 italic mt-0.5">
-                    « {recipe.tagline} »
-                  </p>
-                  <p className="text-xs text-slate-300 leading-relaxed mt-2 line-clamp-2">
-                    {recipe.description}
-                  </p>
-                </div>
+                  {/* Actions Row */}
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between gap-3">
+                    <button
+                      onClick={(e) => handleCompareClick(recipe, e)}
+                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                        isComparing
+                          ? 'bg-purple-600 text-white border-purple-400 font-semibold'
+                          : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 hover:text-white border-white/5'
+                      }`}
+                    >
+                      <Scale className="w-3.5 h-3.5" />
+                      <span>{isComparing ? 'Sélectionné pour comparateur' : 'Comparer'}</span>
+                    </button>
 
-                {/* Ingredients summary */}
-                <div className="text-[11px] text-slate-400 flex flex-wrap gap-1.5 pt-1">
-                  {recipe.ingredients.map((ing, i) => (
-                    <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.04] text-slate-300">
-                      {ing.name}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Actions */}
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
-                  <button
-                    onClick={(e) => handleCompareClick(recipe, e)}
-                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-white px-2 py-1"
-                  >
-                    <Scale className="w-3.5 h-3.5" />
-                    <span>{isComparing ? 'Sélectionné' : 'Comparer'}</span>
-                  </button>
-
-                  <div className="flex items-center gap-1 text-xs text-white font-medium group-hover:translate-x-1 transition-transform">
-                    <span>Fiche détaillée</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1.5 text-xs text-white font-medium group-hover:translate-x-1 transition-transform">
+                      <span>Consulter la recette</span>
+                      <ArrowRight className="w-4 h-4 text-purple-300" />
+                    </div>
                   </div>
                 </div>
               </div>

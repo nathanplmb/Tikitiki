@@ -229,14 +229,33 @@ export const CocktailDetailModal: React.FC<CocktailDetailModalProps> = ({
           <div className="p-5 sm:p-7 space-y-6">
             {/* Visual Header */}
             <div className="space-y-4">
-              <div className="relative rounded-2xl overflow-hidden aspect-[16/10] bg-black/40">
+              <div className="relative rounded-2xl overflow-hidden aspect-[16/10] bg-black/40 border border-white/10">
                 <img
                   src={cocktail.imageUrl}
                   alt={cocktail.name}
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    // Replace broken image with high-end SVG fallback container
+                    const target = e.currentTarget;
+                    target.style.display = 'none';
+                    if (target.nextElementSibling) {
+                      (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                    }
+                  }}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0C14] via-transparent to-transparent" />
-                <div className="absolute bottom-3 left-4 right-4">
+                {/* Fallback container if image fails */}
+                <div 
+                  style={{ display: 'none' }}
+                  className="w-full h-full min-h-[220px] bg-gradient-to-tr from-purple-950/60 via-[#0A0C14] to-black items-center justify-center relative overflow-hidden"
+                >
+                  <Wine className="w-16 h-16 text-white/30" />
+                  <span className="absolute top-4 left-4 text-[10px] font-mono tracking-wider uppercase text-purple-300">
+                    {cocktail.glassType}
+                  </span>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0C14] via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-3 left-4 right-4 pointer-events-none">
                   <h2 className="font-display font-bold text-2xl text-white">
                     {cocktail.name}
                   </h2>

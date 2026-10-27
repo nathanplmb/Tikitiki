@@ -1,101 +1,57 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, FlaskConical } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { sounds } from '../utils/audio';
 
 interface NeonLiquidShakerProps {
   isGenerating: boolean;
+  colorTone?: 'amber' | 'ruby' | 'emerald' | 'violet' | 'neutral';
 }
 
-export const NeonLiquidShaker: React.FC<NeonLiquidShakerProps> = ({ isGenerating }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+const PHASES = [
+  {
+    title: 'Extraction & Botaniques',
+    detail: 'Analyse aromatique des spiritueux et des infusions...',
+  },
+  {
+    title: 'Équilibre & Acidité',
+    detail: 'Harmonisation des densités et ajustement du profil sucré...',
+  },
+  {
+    title: 'Précision du Jigger',
+    detail: 'Dosage rigoureux des portions et calcul de dilution...',
+  },
+  {
+    title: 'Mise en Scène',
+    detail: 'Dressement de la verrerie, glaçons taillés et garniture...',
+  },
+];
+
+export const NeonLiquidShaker: React.FC<NeonLiquidShakerProps> = ({ 
+  isGenerating, 
+  colorTone = 'ruby' 
+}) => {
   const [phaseIndex, setPhaseIndex] = useState(0);
 
-  const phases = [
-    'Équilibre des saveurs et des alcools...',
-    'Harmonisation de la texture et de la dilution...',
-    'Calcul des dosages et des alternatives...',
-    'Élaboration des signatures sur-mesure...',
-  ];
-
   useEffect(() => {
-    if (!isGenerating) return;
+    if (!isGenerating) {
+      setPhaseIndex(0);
+      return;
+    }
 
-    setPhaseIndex(0);
+    // Play a gentle clink on start
+    sounds.playGlassClink();
+
     const interval = setInterval(() => {
-      setPhaseIndex((prev) => (prev + 1) % phases.length);
-      sounds.playShakeBurst();
-    }, 1200);
+      setPhaseIndex((prev) => (prev + 1) % PHASES.length);
+    }, 1600);
 
     return () => clearInterval(interval);
   }, [isGenerating]);
 
-  // Subtle liquid wave physics
-  useEffect(() => {
-    if (!isGenerating) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animationFrameId: number;
-    let step = 0;
-
-    const render = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      step += 0.05;
-
-      const w = canvas.width;
-      const h = canvas.height;
-
-      // Soft wave layer 1
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      for (let x = 0; x <= w; x += 4) {
-        const y = h * 0.52 + Math.sin(x * 0.03 + step) * 12 + Math.cos(x * 0.015 + step * 0.6) * 6;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-
-      const grad1 = ctx.createLinearGradient(0, h * 0.4, 0, h);
-      grad1.addColorStop(0, 'rgba(216, 180, 254, 0.4)');
-      grad1.addColorStop(1, 'rgba(147, 51, 234, 0.6)');
-      ctx.fillStyle = grad1;
-      ctx.fill();
-      ctx.restore();
-
-      // Soft wave layer 2
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-      for (let x = 0; x <= w; x += 4) {
-        const y = h * 0.58 + Math.cos(x * 0.035 + step * 1.1) * 10 + Math.sin(x * 0.02 - step) * 8;
-        ctx.lineTo(x, y);
-      }
-      ctx.lineTo(w, h);
-      ctx.closePath();
-
-      const grad2 = ctx.createLinearGradient(0, h * 0.45, 0, h);
-      grad2.addColorStop(0, 'rgba(244, 114, 182, 0.35)');
-      grad2.addColorStop(1, 'rgba(219, 39, 119, 0.55)');
-      ctx.fillStyle = grad2;
-      ctx.fill();
-      ctx.restore();
-
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [isGenerating]);
-
   if (!isGenerating) return null;
+
+  const currentPhase = PHASES[phaseIndex];
 
   return (
     <AnimatePresence>
@@ -103,60 +59,153 @@ export const NeonLiquidShaker: React.FC<NeonLiquidShakerProps> = ({ isGenerating
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl"
+        transition={{ duration: 0.35 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#08090D]/85 backdrop-blur-2xl"
       >
+        {/* Ambient Backlight Glow tailored to studio cocktail lighting */}
+        <div className="absolute w-72 h-72 rounded-full bg-gradient-to-tr from-purple-900/30 via-pink-900/20 to-amber-900/20 blur-[100px] pointer-events-none" />
+
         <motion.div
-          initial={{ scale: 0.94, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.94, opacity: 0 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative w-full max-w-xs rounded-3xl glass-panel p-6 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] text-center flex flex-col items-center"
+          initial={{ scale: 0.95, opacity: 0, y: 10 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: -10 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+          className="relative w-full max-w-sm rounded-3xl glass-panel p-7 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.7)] text-center flex flex-col items-center overflow-hidden"
         >
-          {/* Subtle Shaker silhouette */}
-          <div className="relative w-36 h-44 rounded-2xl border border-white/20 bg-white/[0.04] overflow-hidden flex flex-col items-center justify-end shadow-inner mb-5">
-            <div className="absolute top-2 w-14 h-3 rounded-full bg-white/15" />
-            <canvas
-              ref={canvasRef}
-              width={200}
-              height={180}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-transparent pointer-events-none" />
+          {/* Subtle Studio Specular Light Rim on Top */}
+          <div className="absolute top-0 inset-x-8 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+
+          {/* STUDIO MIXING VESSEL SCENE */}
+          <div className="relative w-44 h-56 my-2 flex items-center justify-center">
+            {/* Ambient liquid lighting halo */}
+            <div className="absolute inset-4 rounded-full bg-purple-600/15 blur-2xl animate-pulse" />
+
+            {/* Sculpted Mixing Glass Silhouette */}
+            <div className="relative w-32 h-48 rounded-b-3xl rounded-t-lg border border-white/20 bg-white/[0.03] backdrop-blur-md overflow-hidden shadow-2xl flex flex-col justify-end p-2.5">
+              {/* Glass Rim highlight */}
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-white/10 via-white/40 to-white/10 border-b border-white/15" />
+
+              {/* Vertical Crystal Fluting lines */}
+              <div className="absolute inset-y-0 left-6 w-px bg-white/[0.06]" />
+              <div className="absolute inset-y-0 right-6 w-px bg-white/[0.06]" />
+              <div className="absolute inset-y-0 left-12 w-px bg-white/[0.04]" />
+              <div className="absolute inset-y-0 right-12 w-px bg-white/[0.04]" />
+
+              {/* Condensation droplets (subtle dots on exterior) */}
+              <div className="absolute top-8 left-3 w-1 h-1 rounded-full bg-white/30" />
+              <div className="absolute top-14 left-4 w-1.5 h-1.5 rounded-full bg-white/25" />
+              <div className="absolute top-24 right-4 w-1 h-1 rounded-full bg-white/30" />
+              <div className="absolute top-10 right-3 w-1.5 h-1.5 rounded-full bg-white/20" />
+              <div className="absolute top-28 left-5 w-1 h-1.5 rounded-full bg-white/35" />
+
+              {/* Crystal Ice Cube 1 */}
+              <motion.div
+                animate={{
+                  y: [0, -4, 0],
+                  rotate: [0, 2, 0],
+                }}
+                transition={{ repeat: Infinity, duration: 3.2, ease: 'easeInOut' }}
+                className="absolute bottom-14 left-5 w-10 h-10 rounded-md border border-white/25 bg-white/10 backdrop-blur-sm transform rotate-12 shadow-sm z-10 flex items-center justify-center pointer-events-none"
+              >
+                <div className="w-5 h-5 rounded-sm border border-white/15" />
+              </motion.div>
+
+              {/* Crystal Ice Cube 2 */}
+              <motion.div
+                animate={{
+                  y: [0, -3, 0],
+                  rotate: [0, -2, 0],
+                }}
+                transition={{ repeat: Infinity, duration: 2.8, ease: 'easeInOut', delay: 0.4 }}
+                className="absolute bottom-20 right-5 w-9 h-9 rounded-md border border-white/20 bg-white/10 backdrop-blur-sm transform -rotate-6 shadow-sm z-10 flex items-center justify-center pointer-events-none"
+              >
+                <div className="w-4 h-4 rounded-sm border border-white/15" />
+              </motion.div>
+
+              {/* Living Rising Liquid Fill */}
+              <motion.div
+                initial={{ height: '35%' }}
+                animate={{ height: ['40%', '72%', '58%', '70%'] }}
+                transition={{ repeat: Infinity, duration: 5.5, ease: 'easeInOut' }}
+                className="relative w-full rounded-b-2xl bg-gradient-to-t from-purple-900/80 via-pink-800/60 to-purple-500/40 overflow-hidden shadow-inner flex flex-col justify-between"
+              >
+                {/* Liquid meniscus caustic surface */}
+                <div className="w-full h-2 bg-gradient-to-r from-pink-300/40 via-white/50 to-pink-300/40 rounded-full blur-[0.5px]" />
+
+                {/* Micro effervescence bubbles */}
+                <div className="relative w-full h-full">
+                  <motion.div
+                    animate={{ y: [20, -10], opacity: [0, 0.8, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.8, ease: 'easeOut' }}
+                    className="absolute left-3 bottom-1 w-1 h-1 rounded-full bg-white/60"
+                  />
+                  <motion.div
+                    animate={{ y: [30, -5], opacity: [0, 0.9, 0] }}
+                    transition={{ repeat: Infinity, duration: 2.3, ease: 'easeOut', delay: 0.6 }}
+                    className="absolute right-4 bottom-2 w-1.5 h-1.5 rounded-full bg-white/70"
+                  />
+                  <motion.div
+                    animate={{ y: [25, -8], opacity: [0, 0.7, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: 'easeOut', delay: 1.1 }}
+                    className="absolute left-8 bottom-3 w-1 h-1 rounded-full bg-white/50"
+                  />
+                </div>
+              </motion.div>
+
+              {/* Specular glass reflection diagonal sweep */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.08] to-transparent pointer-events-none" />
+            </div>
           </div>
 
-          <div className="space-y-2 w-full">
-            <h4 className="font-display font-semibold text-base text-white">
-              Création en cours
-            </h4>
+          {/* STUDIO STATUS & SOMMELIER PROGRESSION */}
+          <div className="w-full mt-3 space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-medium text-slate-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+              <span>Élaboration du Mix</span>
+            </div>
 
-            <div className="h-8 flex items-center justify-center">
+            <div className="space-y-1">
+              <AnimatePresence mode="wait">
+                <motion.h4
+                  key={currentPhase.title}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.25 }}
+                  className="font-display font-semibold text-base text-white tracking-tight"
+                >
+                  {currentPhase.title}
+                </motion.h4>
+              </AnimatePresence>
+
               <AnimatePresence mode="wait">
                 <motion.p
-                  key={phaseIndex}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.2 }}
-                  className="text-xs text-slate-300"
+                  key={currentPhase.detail}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="text-xs text-slate-400 min-h-[32px] px-2 leading-relaxed"
                 >
-                  {phases[phaseIndex]}
+                  {currentPhase.detail}
                 </motion.p>
               </AnimatePresence>
             </div>
 
-            {/* Subtle progress bar */}
-            <div className="w-full h-1 rounded-full bg-white/10 overflow-hidden relative">
-              <motion.div
-                animate={{
-                  x: ['-100%', '100%'],
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.4,
-                  ease: 'easeInOut',
-                }}
-                className="w-1/2 h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"
-              />
+            {/* Stepped progress indicators */}
+            <div className="flex items-center justify-center gap-1.5 pt-1">
+              {PHASES.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    idx === phaseIndex
+                      ? 'w-6 bg-white'
+                      : idx < phaseIndex
+                      ? 'w-2 bg-white/50'
+                      : 'w-2 bg-white/15'
+                  }`}
+                />
+              ))}
             </div>
           </div>
         </motion.div>

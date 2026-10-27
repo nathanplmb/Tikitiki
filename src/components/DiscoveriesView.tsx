@@ -152,11 +152,27 @@ export const DiscoveriesView: React.FC<DiscoveriesViewProps> = ({
         </h2>
 
         <div className="p-5 rounded-3xl glass-panel border border-white/10 flex flex-col sm:flex-row gap-4 items-center">
-          <img
-            src="https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80"
-            alt="Cocktail du jour"
-            className="w-full sm:w-36 h-36 rounded-2xl object-cover shrink-0"
-          />
+          <div className="w-full sm:w-36 h-36 rounded-2xl overflow-hidden bg-black/40 border border-white/10 shrink-0 relative flex items-center justify-center">
+            <img
+              src="https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80"
+              alt="Cocktail du jour"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                if (target.nextElementSibling) {
+                  (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                }
+              }}
+              className="w-full h-full object-cover"
+            />
+            <div 
+              style={{ display: 'none' }}
+              className="w-full h-full bg-gradient-to-tr from-amber-950/60 via-[#0A0C14] to-black items-center justify-center"
+            >
+              <Compass className="w-10 h-10 text-amber-300/40" />
+            </div>
+          </div>
 
           <div className="space-y-2 flex-1">
             <span className="text-[10px] font-mono text-purple-300 uppercase">

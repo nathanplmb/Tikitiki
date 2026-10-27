@@ -54,13 +54,13 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-          className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl glass-panel border border-emerald-400/30 p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-10 space-y-6"
+          className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl glass-panel border border-white/10 p-6 sm:p-8 shadow-[0_25px_60px_rgba(0,0,0,0.8)] z-10 space-y-6"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-white/10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5 text-emerald-300" />
+              <div className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center">
+                <ShoppingCart className="w-5 h-5 text-slate-200" />
               </div>
               <div>
                 <h2 className="font-display font-bold text-lg text-white">
@@ -81,7 +81,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
           </div>
 
           {/* Advice alert */}
-          <div className="p-3.5 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 flex items-center gap-3 text-xs text-emerald-200">
+          <div className="p-3.5 rounded-2xl glass-panel-subtle border border-white/5 flex items-center gap-3 text-xs text-slate-300">
             <ShoppingBag className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>
               Astuce anti-gaspillage : privilégie les formats 25cl pour les sirops et les bouteilles d’un litre pour les softs.
@@ -159,7 +159,7 @@ export const ShoppingListModal: React.FC<ShoppingListModalProps> = ({
 
               <button
                 onClick={handleCopy}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-400 hover:bg-emerald-300 text-slate-950 flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-100 text-slate-950 flex items-center gap-1.5 transition-all shadow-md active:scale-[0.98]"
               >
                 <Copy className="w-3.5 h-3.5" />
                 <span>{copied ? 'Liste copiée !' : 'Copier la liste'}</span>
