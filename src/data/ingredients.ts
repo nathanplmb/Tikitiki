@@ -448,6 +448,7 @@ export interface FlavorProfile {
   color: string;
   accentClass: string;
   borderClass: string;
+  colorTheme: 'dark-berry' | 'tropical' | 'citrus-fresh' | 'floral' | 'botanical-bitter' | 'spiced-warm' | 'neutral';
 }
 
 export const FLAVOR_PROFILES: FlavorProfile[] = [
@@ -458,7 +459,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Douceur acidulée rappelant les confiseries aux fruits, accessible et festive.',
     color: '#ec4899',
     accentClass: 'from-pink-500/20 to-purple-500/10 text-pink-300',
-    borderClass: 'border-pink-500/40 hover:border-pink-400',
+    borderClass: 'border-pink-500/30 hover:border-pink-400',
+    colorTheme: 'dark-berry',
   },
   {
     id: 'fruits-noirs',
@@ -467,7 +469,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Profondeur aromatique boisée, robe pourpre veloutée et élégance sombre.',
     color: '#9333ea',
     accentClass: 'from-purple-600/25 to-indigo-600/10 text-purple-300',
-    borderClass: 'border-purple-500/40 hover:border-purple-400',
+    borderClass: 'border-purple-500/30 hover:border-purple-400',
+    colorTheme: 'dark-berry',
   },
   {
     id: 'acidule-frais',
@@ -476,7 +479,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Explosion d’agrumes tonifiants et effervescence nette, désaltérant à souhait.',
     color: '#06b6d4',
     accentClass: 'from-cyan-500/20 to-emerald-500/10 text-cyan-300',
-    borderClass: 'border-cyan-500/40 hover:border-cyan-400',
+    borderClass: 'border-cyan-500/30 hover:border-cyan-400',
+    colorTheme: 'citrus-fresh',
   },
   {
     id: 'tropical-ensoleille',
@@ -485,7 +489,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Ananas, fruit de la passion et mangue pour une évasion lumineuse.',
     color: '#f59e0b',
     accentClass: 'from-amber-500/20 to-orange-500/10 text-amber-300',
-    borderClass: 'border-amber-500/40 hover:border-amber-400',
+    borderClass: 'border-amber-500/30 hover:border-amber-400',
+    colorTheme: 'tropical',
   },
   {
     id: 'doux-gourmand',
@@ -494,7 +499,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Texture enveloppante, vanille et fruits mûrs, idéal pour les amateurs de douceur.',
     color: '#f43f5e',
     accentClass: 'from-rose-500/20 to-pink-500/10 text-rose-300',
-    borderClass: 'border-rose-500/40 hover:border-rose-400',
+    borderClass: 'border-rose-500/30 hover:border-rose-400',
+    colorTheme: 'dark-berry',
   },
   {
     id: 'floral-elegant',
@@ -503,7 +509,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Sureau, violette et notes botaniques pour une dégustation tout en finesse.',
     color: '#a855f7',
     accentClass: 'from-fuchsia-500/20 to-purple-500/10 text-fuchsia-300',
-    borderClass: 'border-fuchsia-500/40 hover:border-fuchsia-400',
+    borderClass: 'border-fuchsia-500/30 hover:border-fuchsia-400',
+    colorTheme: 'floral',
   },
   {
     id: 'amer-botanique',
@@ -512,7 +519,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Quinine, genièvre et écorces pour les palais qui fuient le sucre.',
     color: '#10b981',
     accentClass: 'from-emerald-500/20 to-teal-500/10 text-emerald-300',
-    borderClass: 'border-emerald-500/40 hover:border-emerald-400',
+    borderClass: 'border-emerald-500/30 hover:border-emerald-400',
+    colorTheme: 'botanical-bitter',
   },
   {
     id: 'epice-chaleureux',
@@ -521,16 +529,18 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Gingembre piquant, épices douces et chaleur réconfortante.',
     color: '#ea580c',
     accentClass: 'from-orange-600/20 to-amber-600/10 text-orange-300',
-    borderClass: 'border-orange-500/40 hover:border-orange-400',
+    borderClass: 'border-orange-500/30 hover:border-orange-400',
+    colorTheme: 'spiced-warm',
   },
   {
     id: 'mysterieux-sombre',
     name: 'Mystérieux et sombre',
     shortTag: 'Nocturne & intense',
-    description: 'Association néon d’herbes et de baies profondes pour une signature unique.',
+    description: 'Association d’herbes et de baies profondes pour une signature unique.',
     color: '#6366f1',
     accentClass: 'from-indigo-600/25 to-purple-700/15 text-indigo-300',
-    borderClass: 'border-indigo-500/40 hover:border-indigo-400',
+    borderClass: 'border-indigo-500/30 hover:border-indigo-400',
+    colorTheme: 'dark-berry',
   },
   {
     id: 'tres-original-accessible',
@@ -539,7 +549,8 @@ export const FLAVOR_PROFILES: FlavorProfile[] = [
     description: 'Contraste inattendu tout en restant harmonieux et séduisant pour un groupe.',
     color: '#00f0ff',
     accentClass: 'from-cyan-400/20 to-fuchsia-500/10 text-cyan-200',
-    borderClass: 'border-cyan-400/50 hover:border-cyan-300',
+    borderClass: 'border-cyan-400/30 hover:border-cyan-300',
+    colorTheme: 'citrus-fresh',
   },
 ];
 

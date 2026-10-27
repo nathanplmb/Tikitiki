@@ -8,17 +8,18 @@ import {
   ShieldCheck, 
   TrendingUp, 
   Wine, 
-  BookmarkCheck,
-  Zap,
+  PartyPopper,
   CheckCircle2
 } from 'lucide-react';
 import { CocktailRecipe, UserBarItem } from '../types/cocktail';
 import { CURATED_PAIRINGS, PairingSuggestion } from '../data/ingredients';
+import { sounds } from '../utils/audio';
 
 interface DashboardProps {
   onStartLab: () => void;
   onSurpriseMe: () => void;
   onOpenRoulette: () => void;
+  onOpenParty?: () => void;
   recentCocktails: CocktailRecipe[];
   onSelectCocktail: (cocktail: CocktailRecipe) => void;
   userBar: UserBarItem[];
@@ -30,6 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onStartLab,
   onSurpriseMe,
   onOpenRoulette,
+  onOpenParty,
   recentCocktails,
   onSelectCocktail,
   userBar,
@@ -40,104 +42,91 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const stockedAlcohols = userBar.filter((item) => item.category === 'alcool' && item.inStock);
 
   return (
-    <div className="space-y-10 pb-16">
-      {/* HERO SECTION */}
-      <section className="relative rounded-3xl overflow-hidden glass-panel border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-        {/* Ambient glow inside hero */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-cyan-500/20 via-purple-600/20 to-transparent blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-fuchsia-600/15 blur-3xl pointer-events-none" />
+    <div className="space-y-8 pb-20">
+      {/* HERO SECTION (APPLE-GRADE FROSTED GLASS & IMMERSIVE PHOTO) */}
+      <section className="relative rounded-3xl overflow-hidden glass-panel border border-white/10 p-6 sm:p-10">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          <div className="md:col-span-7 space-y-4">
+            <span className="text-[11px] font-mono tracking-wider text-slate-400 uppercase">
+              MIXLAB STUDIO
+            </span>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center p-6 sm:p-10 lg:p-12 relative z-10">
-          {/* Left Text & CTAs */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-mono tracking-wide">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span>LABORATOIRE DE MIXOLOGIE IA</span>
-            </div>
-
-            <h1 className="font-display font-extrabold text-3xl sm:text-5xl lg:text-6xl text-white tracking-tight leading-[1.1]">
+            <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-white tracking-tight leading-tight">
               Quel sera ton <br className="hidden sm:inline" />
-              <span className="bg-gradient-to-r from-cyan-300 via-fuchsia-300 to-purple-400 bg-clip-text text-transparent">
-                prochain mix ?
-              </span>
+              prochain mix ?
             </h1>
 
-            <p className="text-slate-300 text-sm sm:text-base max-w-xl leading-relaxed">
-              Sélectionne tes alcools, diluants et arômes favoris. L’intelligence artificielle Gemini conçoit instantanément des recettes équilibrées, réalisables et adaptées à tes envies de soirée.
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-md">
+              Sélectionne tes alcools, softs et arômes préférés. L’intelligence artificielle Gemini conçoit instantanément des recettes équilibrées, accessibles et élégantes.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center gap-4">
+            <div className="pt-2 flex flex-wrap items-center gap-2.5">
               <button
-                onClick={onStartLab}
-                className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl font-display font-semibold text-sm sm:text-base text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-cyan-200 hover:from-cyan-300 hover:to-white transition-all shadow-[0_0_25px_rgba(6,182,212,0.4)] hover:shadow-[0_0_35px_rgba(6,182,212,0.6)] hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => {
+                  sounds.playTap();
+                  onStartLab();
+                }}
+                className="flex items-center gap-2 px-5 py-3 rounded-full font-display font-semibold text-xs sm:text-sm text-slate-950 bg-white hover:bg-slate-100 transition-all shadow-md active:scale-[0.98]"
               >
-                <FlaskConical className="w-5 h-5 text-slate-900" />
+                <FlaskConical className="w-4 h-4" />
                 <span>Créer mon cocktail</span>
-                <ArrowRight className="w-4 h-4 ml-1 text-slate-900" />
+                <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
               </button>
 
               <button
-                onClick={onSurpriseMe}
+                onClick={() => {
+                  sounds.playTap();
+                  onSurpriseMe();
+                }}
                 disabled={isLoadingSurprise}
-                className="flex items-center gap-2.5 px-5 py-3.5 rounded-xl font-display font-medium text-sm sm:text-base text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-400/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.25)] transition-all active:scale-[0.98] disabled:opacity-60"
+                className="flex items-center gap-2 px-4 py-3 rounded-full font-display font-medium text-xs sm:text-sm text-white bg-white/10 hover:bg-white/15 border border-white/10 transition-all disabled:opacity-50"
               >
-                <Sparkles className={`w-4 h-4 text-purple-300 ${isLoadingSurprise ? 'animate-spin' : ''}`} />
-                <span>{isLoadingSurprise ? 'Création en cours...' : 'Surprends-moi'}</span>
+                <Sparkles className={`w-3.5 h-3.5 text-purple-300 ${isLoadingSurprise ? 'animate-spin' : ''}`} />
+                <span>{isLoadingSurprise ? 'Création...' : 'Surprends-moi'}</span>
               </button>
 
-              <button
-                onClick={onOpenRoulette}
-                className="flex items-center gap-2 px-4 py-3.5 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white bg-transparent hover:bg-white/[0.04] border border-white/5 hover:border-white/15 transition-all"
-              >
-                <Dice5 className="w-4 h-4 text-purple-400" />
-                <span>Roulette des saveurs</span>
-              </button>
+              {onOpenParty && (
+                <button
+                  onClick={() => {
+                    sounds.playTap();
+                    onOpenParty();
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-3 rounded-full text-xs font-medium text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 transition-all"
+                >
+                  <PartyPopper className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Soirée</span>
+                </button>
+              )}
             </div>
 
-            {/* Quick stats / Features unboxed */}
-            <div className="pt-4 flex flex-wrap items-center gap-6 text-xs text-slate-400 border-t border-white/5 font-mono">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-                <span>Supermarchés français</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                <span>1 seule bouteille d’alcool</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span>Dosages précis par verre</span>
-              </div>
+            <div className="pt-3 flex flex-wrap items-center gap-4 text-[11px] text-slate-400 border-t border-white/5">
+              <span>Supermarchés français</span>
+              <span>·</span>
+              <span>1 seule bouteille</span>
+              <span>·</span>
+              <span>Option sans alcool</span>
             </div>
           </div>
 
-          {/* Right Immersive Cocktail Visual */}
-          <div className="lg:col-span-5 relative">
-            <div className="relative mx-auto max-w-sm rounded-2xl overflow-hidden glass-panel border border-white/15 shadow-[0_15px_40px_rgba(0,0,0,0.6)] group">
-              <div className="aspect-[4/5] overflow-hidden relative">
-                <img
-                  src="https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=800&q=80"
-                  alt="Neon Cocktail Signature"
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#090C15] via-[#090C15]/40 to-transparent" />
-                
-                {/* Neon Floating Card */}
-                <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl glass-panel border border-cyan-400/30 shadow-[0_0_20px_rgba(6,182,212,0.25)] space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">
-                      Signature du jour
-                    </span>
-                    <span className="text-[10px] text-slate-300 font-mono">
-                      ~2.20€ / verre
-                    </span>
-                  </div>
-                  <h3 className="font-display font-bold text-lg text-white">
-                    Midnight Velvet Spritz
-                  </h3>
-                  <p className="text-xs text-slate-300 line-clamp-2">
-                    Vodka, sirop de mûre sauvage, pink tonic et zeste de citron vert givré.
-                  </p>
+          {/* Right Spotlight Cocktail */}
+          <div className="md:col-span-5 relative">
+            <div className="relative rounded-2xl overflow-hidden aspect-[4/5] glass-panel border border-white/10 group shadow-lg">
+              <img
+                src="https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=700&q=80"
+                alt="Signature Cocktail"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0C14] via-[#0A0C14]/30 to-transparent" />
+
+              <div className="absolute bottom-3 left-3 right-3 p-3 rounded-xl glass-panel-subtle space-y-1">
+                <div className="text-[10px] font-mono uppercase text-slate-400">
+                  Signature recommandée
+                </div>
+                <div className="font-display font-bold text-sm text-white">
+                  Midnight Velvet Spritz
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  Vodka, mûre sauvage, pink tonic et zeste de citron vert.
                 </div>
               </div>
             </div>
@@ -145,58 +134,45 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      {/* SECTION: TES DERNIÈRES CRÉATIONS */}
+      {/* RECENT CREATIONS */}
       {recentCocktails.length > 0 && (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h2 className="font-display font-bold text-xl sm:text-2xl text-white">
-                Tes dernières créations
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
-                Retrouve les recettes récemment testées ou imaginées dans le laboratoire.
-              </p>
-            </div>
+            <h2 className="font-display font-semibold text-lg text-white">
+              Tes dernières créations
+            </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {recentCocktails.slice(0, 3).map((cocktail) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {recentCocktails.slice(0, 2).map((cocktail) => (
               <div
                 key={cocktail.id}
-                onClick={() => onSelectCocktail(cocktail)}
-                className="cursor-pointer group relative rounded-2xl overflow-hidden glass-panel-interactive border border-white/10 hover:border-cyan-400/40 p-4 space-y-3 flex flex-col justify-between"
+                onClick={() => {
+                  sounds.playGlassClink();
+                  onSelectCocktail(cocktail);
+                }}
+                className="cursor-pointer group p-3.5 rounded-2xl glass-panel-interactive border border-white/10 flex items-center gap-3.5"
               >
-                <div className="space-y-3">
-                  <div className="aspect-[16/9] rounded-xl overflow-hidden relative">
-                    <img
-                      src={cocktail.imageUrl}
-                      alt={cocktail.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-mono uppercase bg-slate-950/80 backdrop-blur-md text-cyan-300 border border-cyan-400/30">
+                <img
+                  src={cocktail.imageUrl}
+                  alt={cocktail.name}
+                  className="w-16 h-16 rounded-xl object-cover shrink-0"
+                />
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-purple-300 uppercase">
                       {cocktail.type}
-                    </div>
-                    <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-950/80 backdrop-blur-md text-slate-300 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-cyan-400" />
-                      <span>{cocktail.prepTimeMinutes} min</span>
-                    </div>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {cocktail.prepTimeMinutes} min
+                    </span>
                   </div>
-
-                  <div>
-                    <h3 className="font-display font-bold text-base text-white group-hover:text-cyan-200 transition-colors">
-                      {cocktail.name}
-                    </h3>
-                    <p className="text-xs text-slate-400 line-clamp-2 mt-1">
-                      {cocktail.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
-                  <span>{cocktail.distinctIngredientsCount} ingrédients</span>
-                  <span className="text-cyan-300 font-medium group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
-                    Voir la fiche <ArrowRight className="w-3 h-3" />
-                  </span>
+                  <h3 className="font-display font-bold text-sm text-white group-hover:text-purple-200 truncate">
+                    {cocktail.name}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {cocktail.description}
+                  </p>
                 </div>
               </div>
             ))}
@@ -204,128 +180,74 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </section>
       )}
 
-      {/* SECTION: ASSOCIATIONS À DÉCOUVRIR */}
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-fuchsia-400" />
-            <h2 className="font-display font-bold text-xl sm:text-2xl text-white">
-              Associations à découvrir
-            </h2>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-400">
-            Des accords aromatiques éprouvés, harmonieux et facilement réalisables à la maison.
-          </p>
+      {/* CURATED PAIRINGS SPOTLIGHT */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display font-semibold text-lg text-white flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-purple-400" />
+            <span>Accords Aromatiques à Explorer</span>
+          </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {CURATED_PAIRINGS.map((pairing, index) => (
             <div
               key={index}
-              className="rounded-2xl glass-panel p-5 space-y-4 border border-white/10 hover:border-purple-400/40 transition-all flex flex-col justify-between"
+              className="p-4 rounded-2xl glass-panel border border-white/10 flex flex-col justify-between space-y-3"
             >
-              <div className="space-y-3">
-                <div className="text-[11px] font-mono text-purple-300 uppercase tracking-wider">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-mono text-slate-400 uppercase">
                   {pairing.tagline}
-                </div>
-                <h3 className="font-display font-bold text-lg text-white">
+                </span>
+                <h3 className="font-display font-bold text-sm text-white">
                   {pairing.title}
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-xs text-slate-300 line-clamp-2">
                   {pairing.description}
                 </p>
-
-                <div className="p-3 rounded-xl bg-purple-950/20 border border-purple-800/20 space-y-1">
-                  <div className="text-[10px] font-mono uppercase text-purple-300">
-                    Pourquoi ça marche
-                  </div>
-                  <div className="text-xs text-slate-300">
-                    {pairing.whyItWorks}
-                  </div>
-                </div>
               </div>
 
               <button
-                onClick={() => onStartWithPairing(pairing)}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold bg-white/5 hover:bg-purple-500/20 text-purple-200 border border-purple-500/30 transition-all"
+                onClick={() => {
+                  sounds.playTap();
+                  onStartWithPairing(pairing);
+                }}
+                className="w-full py-2 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-white transition-all text-center"
               >
-                <FlaskConical className="w-3.5 h-3.5" />
-                <span>Tester cette combinaison</span>
+                Tester cette association
               </button>
             </div>
           ))}
         </div>
       </section>
 
-      {/* SECTION: LES TENDANCES DE TON BAR */}
-      <section className="rounded-2xl glass-panel p-6 sm:p-8 border border-white/10 relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center">
-              <Wine className="w-5 h-5 text-cyan-300" />
-            </div>
-            <div>
-              <h2 className="font-display font-bold text-lg sm:text-xl text-white">
-                Les tendances de ton bar
-              </h2>
-              <p className="text-xs text-slate-400">
-                Statistiques basées sur tes bouteilles en stock et tes préférences enregistrées.
-              </p>
-            </div>
+      {/* MON BAR TRENDS PREVIEW */}
+      <section className="p-5 rounded-3xl glass-panel border border-white/10 flex items-center justify-between">
+        <div className="space-y-0.5">
+          <div className="text-xs text-slate-400">Inventaire personnel</div>
+          <div className="font-display font-bold text-base text-white">
+            {inStockCount} ingrédients disponibles dans ton bar
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-mono">
-              {inStockCount} ingrédients disponibles
-            </span>
+          <div className="text-[11px] text-slate-400">
+            {stockedAlcohols.map((a) => a.name).join(', ') || 'Aucune bouteille déclarée'}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6">
-          <div className="space-y-1.5 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] font-mono text-slate-400 uppercase">
-              Bases en réserve
-            </div>
-            <div className="text-2xl font-display font-bold text-white">
-              {stockedAlcohols.length} bouteilles
-            </div>
-            <div className="text-xs text-slate-400 truncate">
-              {stockedAlcohols.map((a) => a.name).join(', ') || 'Aucun alcool renseigné'}
-            </div>
-          </div>
-
-          <div className="space-y-1.5 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] font-mono text-slate-400 uppercase">
-              Profil dominant
-            </div>
-            <div className="text-2xl font-display font-bold text-cyan-300">
-              Fruits & Bulles
-            </div>
-            <div className="text-xs text-slate-400">
-              Favorise les associations rafraîchissantes et peu amères.
-            </div>
-          </div>
-
-          <div className="space-y-1.5 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] font-mono text-slate-400 uppercase">
-              Optimisation budget
-            </div>
-            <div className="text-2xl font-display font-bold text-emerald-300">
-              Éco-responsable
-            </div>
-            <div className="text-xs text-slate-400">
-              Recettes priorisant 1 seul alcool et petits formats de sirops.
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => {
+            sounds.playTap();
+            onStartLab();
+          }}
+          className="px-4 py-2 rounded-full text-xs font-medium bg-white/10 hover:bg-white/15 text-white"
+        >
+          Ouvrir le bar
+        </button>
       </section>
 
-      {/* RESPONSIBLE DRINKING BANNER */}
-      <div className="rounded-xl p-4 bg-white/[0.02] border border-white/5 flex items-center gap-3 text-xs text-slate-400">
-        <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0" />
-        <p>
-          <strong className="text-slate-300">Consommation responsable :</strong> L’alcool se savoure avec modération. Proposez toujours des alternatives sans alcool à vos invités et ne prenez jamais le volant après avoir bu.
-        </p>
+      {/* Moderation Reminder */}
+      <div className="flex items-center gap-2 text-[11px] text-slate-400 px-2">
+        <ShieldCheck className="w-4 h-4 text-slate-500 shrink-0" />
+        <p>L’alcool est à consommer avec modération. Pensez à proposer des mocktails sans alcool.</p>
       </div>
     </div>
   );

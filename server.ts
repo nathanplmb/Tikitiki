@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
-import { CocktailRecipe } from './src/types/cocktail';
+import { CocktailRecipe, CreationConfig, PartyPlan } from './src/types/cocktail';
 import { INITIAL_CURATED_COCKTAILS } from './src/data/curatedCocktails';
 
 dotenv.config();
@@ -26,7 +26,7 @@ const ai = new GoogleGenAI({
   },
 });
 
-// Curated high quality cocktail images
+// Curated high quality cocktail photos
 const COCKTAIL_PHOTOS = [
   'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=1000&q=80', // Berry spritz
   'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=1000&q=80', // Botanical
@@ -46,6 +46,18 @@ function pickCocktailPhoto(index: number, name: string): string {
   }
   const picked = (Math.abs(hash) + index) % COCKTAIL_PHOTOS.length;
   return COCKTAIL_PHOTOS[picked];
+}
+
+// Map profile name to color theme for adaptive background
+function mapProfileToColorTheme(profileName: string): CocktailRecipe['tasteProfile']['colorTheme'] {
+  const p = profileName.toLowerCase();
+  if (p.includes('noir') || p.includes('mûre') || p.includes('cassis')) return 'dark-berry';
+  if (p.includes('tropical') || p.includes('passion') || p.includes('ananas')) return 'tropical';
+  if (p.includes('acidulé') || p.includes('citron') || p.includes('frais')) return 'citrus-fresh';
+  if (p.includes('floral') || p.includes('sureau') || p.includes('violette')) return 'floral';
+  if (p.includes('amer') || p.includes('botanique') || p.includes('herbacé')) return 'botanical-bitter';
+  if (p.includes('épicé') || p.includes('gingembre') || p.includes('chaleureux')) return 'spiced-warm';
+  return 'dark-berry';
 }
 
 const RECIPES_SCHEMA = {
@@ -144,7 +156,11 @@ const RECIPES_SCHEMA = {
       },
       alcoholEstimate: {
         type: Type.STRING,
-        description: 'e.g. Modéré (~8-10% vol.)',
+        description: 'e.g. Modéré (~8-10% vol.) ou 0.0% Sans alcool',
+      },
+      timerSeconds: {
+        type: Type.INTEGER,
+        description: 'Optional shake or infusion timer in seconds (e.g. 15 for shake, 180 for infusion)',
       },
     },
     required: [
@@ -169,42 +185,108 @@ const RECIPES_SCHEMA = {
   },
 };
 
-const SYSTEM_INSTRUCTION = `Tu es un mixologue créatif professionnel pour l'application MIXLAB, spécialisé dans les cocktails accessibles, les associations aromatiques originales et les recettes adaptées aux soirées conviviales.
-Tu connais parfaitement les profils aromatiques des alcools, sodas, jus, sirops et garnitures disponibles en France.
+const SYSTEM_INSTRUCTION = `Tu es un mixologue créatif professionnel pour l'application MIXLAB, spécialisé dans les cocktails accessibles, les mocktails travaillés et les recettes conviviales.
+Tu connais parfaitement les profils aromatiques des alcools, des softs, des thés, des sirops et des garnitures disponibles en France.
 
-Tes priorités absolues, dans cet ordre :
+Règles impératives :
 1. Produire une association aromatique cohérente et savoureuse.
-2. Respecter scrupuleusement les ingrédients sélectionnés et les contraintes logistiques indiquées.
-3. Proposer quelque chose d'original sans jamais tomber dans des associations absurdes ou désagréables.
-4. Privilégier les recettes susceptibles de plaire à plusieurs personnes (conviviales et équilibrées).
-5. Limiter le nombre d'ingrédients et la complexité (idéalement 1 alcool, 1 diluant, 1 option aromatique/garniture max).
-6. Expliquer clairement pourquoi l'association fonctionne d'un point de vue aromatique.
-7. Proposer une variante plus consensuelle si la recette est audacieuse.
+2. Si le mode "Sans Alcool / Mocktail" est actif : 0.0% d'alcool absolu ! Ne retire pas simplement l'alcool : construis un véritable mocktail avec du corps (jus, purées, thés, tonics), de l'acidité et des arômes.
+3. Respecter scrupuleusement les contraintes de l'utilisateur (budget, sans sirop, supermarché).
+4. Proposer 3 recettes clairement distinctes :
+   - Consensuelle (accessible, douce, très facile à apprécier).
+   - Signature (meilleur équilibre entre originalité et gourmandise).
+   - Audacieuse (association surprenante mais aromatiquement justifiée).
+5. Expliquer clairement pourquoi l'association fonctionne.
+6. Ne prétends jamais avoir goûté physiquement une recette ni garantir qu'elle plaira à tous.
+7. Ne présente pas une forte teneur en alcool comme un avantage.
+Langue : Français.`;
 
-Règles éthiques & sécurité :
-- Les quantités d'alcool doivent rester modérées (environ 4 à 5 cl d'alcool fort ou liqueur par verre).
-- Ne jamais présenter une forte teneur en alcool comme un avantage ou inciter à boire davantage.
-- Ne prétends jamais avoir goûté une recette ni garantir qu'elle plaira à tout le monde.
-- Indique des prix comme "indicatifs à vérifier" sans prétendre qu'un magasin précis pratique ce tarif.
-- Pour chaque demande, génère exactement 3 recettes :
-  1. Consensuelle (accessible, douce, très facile à apprécier par un groupe).
-  2. Signature (le meilleur équilibre entre originalité et harmonie gustative).
-  3. Audacieuse (une association moins attendue, mais aromatiquement justifiée et intrigante).
-Langue obligatoire : Français.`;
+// Deterministic Validation Layer
+function validateAndNormalizeRecipes(
+  rawRecipes: any[],
+  config: Partial<CreationConfig>,
+  source: CocktailRecipe['source'] = 'gemini_ia'
+): CocktailRecipe[] {
+  return rawRecipes.map((r, index) => {
+    // Ensure ingredients have clean amounts and categories
+    const ingredients = (r.ingredients || []).map((ing: any) => ({
+      name: String(ing.name || 'Ingrédient'),
+      amount: String(ing.amount || '4 cl'),
+      category: ['alcool', 'diluant', 'sirop', 'garniture', 'autre'].includes(ing.category)
+        ? ing.category
+        : config.isMocktailMode
+        ? 'diluant'
+        : 'autre',
+      supermarketCommon: Boolean(ing.supermarketCommon ?? true),
+      estimatedPrice: ing.estimatedPrice ? String(ing.estimatedPrice) : undefined,
+      formatAdvice: ing.formatAdvice ? String(ing.formatAdvice) : undefined,
+      optional: Boolean(ing.optional),
+    }));
 
-// Helper: Synthesize tailored recipes if remote Gemini is experiencing 503 high demand
-function generateTailoredFallback(config: any): CocktailRecipe[] {
-  const base = config.selectedBases?.[0] || 'Vodka classique';
+    // If mocktail mode, ensure no alcohol in ingredients
+    const cleanIngredients = config.isMocktailMode
+      ? ingredients.filter((ing: any) => ing.category !== 'alcool')
+      : ingredients;
+
+    const profileName = r.tasteProfile?.profileName || config.profileName || 'Fruité et équilibré';
+
+    return {
+      id: r.id || `mixlab-${Date.now()}-${index}`,
+      name: String(r.name || 'Cocktail Signature'),
+      type: (['consensuelle', 'signature', 'audacieuse'].includes(r.type) ? r.type : 'signature') as CocktailRecipe['type'],
+      tagline: String(r.tagline || 'Création originale MIXLAB'),
+      description: String(r.description || ''),
+      tasteProfile: {
+        primaryNotes: Array.isArray(r.tasteProfile?.primaryNotes) ? r.tasteProfile.primaryNotes : ['Notes fraîches'],
+        sweetness: Math.max(1, Math.min(5, Number(r.tasteProfile?.sweetness) || 3)),
+        fruitiness: Math.max(1, Math.min(5, Number(r.tasteProfile?.fruitiness) || 3)),
+        originality: Math.max(1, Math.min(5, Number(r.tasteProfile?.originality) || 3)),
+        profileName,
+        colorTheme: mapProfileToColorTheme(profileName),
+      },
+      ingredients: cleanIngredients,
+      steps: Array.isArray(r.steps) && r.steps.length > 0 ? r.steps.map(String) : ['Mélanger et servir bien frais.'],
+      glassType: String(r.glassType || 'Verre Highball'),
+      prepTimeMinutes: Number(r.prepTimeMinutes) || 3,
+      difficulty: (['Très facile', 'Facile', 'Moyen'].includes(r.difficulty) ? r.difficulty : 'Facile') as CocktailRecipe['difficulty'],
+      distinctIngredientsCount: cleanIngredients.length,
+      estimatedCost: {
+        min: Number(r.estimatedCost?.min) || 1.8,
+        max: Number(r.estimatedCost?.max) || 2.8,
+        currency: 'EUR',
+        status: 'estime',
+        note: r.estimatedCost?.note || 'Estimation indicative par verre selon les formats standards.',
+      },
+      aromaticCoherence: String(r.aromaticCoherence || "L'équilibre repose sur la complémentarité des notes sucrées et acidulées."),
+      simplerAlternative: String(r.simplerAlternative || 'Remplacer le diluant par une eau gazeuse avec un trait de citron.'),
+      mocktailVariant: String(r.mocktailVariant || "Remplacer l'alcool par une base de thé glacé ou de jus de pomme."),
+      isMocktailOnly: Boolean(config.isMocktailMode),
+      allergens: Array.isArray(r.allergens) ? r.allergens.map(String) : [],
+      alcoholEstimate: config.isMocktailMode ? '0.0% Sans alcool' : String(r.alcoholEstimate || 'Modéré (~8-10% vol.)'),
+      timerSeconds: Number(r.timerSeconds) || (r.steps?.some((s: string) => s.toLowerCase().includes('shak')) ? 15 : undefined),
+      imageUrl: r.imageUrl || pickCocktailPhoto(index, r.name),
+      isExample: Boolean(r.isExample),
+      source,
+      testedByUser: false,
+      createdAt: r.createdAt || new Date().toISOString(),
+    };
+  });
+}
+
+// Fallback recipes tailored to user selections
+function generateTailoredFallback(config: Partial<CreationConfig>): CocktailRecipe[] {
+  const isMock = config.isMocktailMode;
+  const base = isMock ? 'Infusion de thé pêche & menthe' : (config.selectedBases?.[0] || 'Vodka classique');
   const mixer = config.selectedMixers?.[0] || 'Schweppes Pink Tonic';
   const aromatic = config.selectedAromatics?.[0] || 'Sirop de mûre';
 
-  return [
+  const raw = [
     {
-      id: `tailored-${Date.now()}-0`,
-      name: `Le Soft ${base.split(' ')[0]} Fizz`,
+      id: `fallback-${Date.now()}-0`,
+      name: isMock ? `Virgin ${mixer.split(' ')[0]} Fizz` : `Le Soft ${base.split(' ')[0]} Fizz`,
       type: 'consensuelle',
       tagline: `La fraîcheur immédiate de ${base} allongée au ${mixer}`,
-      description: `Une recette harmonieuse et accessible où les notes de ${base} s’adoucissent délicatement au contact des bulles de ${mixer}.`,
+      description: `Une recette harmonieuse et accessible où les arômes s'adoucissent délicatement au contact des bulles de ${mixer}.`,
       tasteProfile: {
         primaryNotes: [base, mixer, 'Agrume doux'],
         sweetness: 3,
@@ -213,37 +295,36 @@ function generateTailoredFallback(config: any): CocktailRecipe[] {
         profileName: config.profileName || 'Fruité et bonbon',
       },
       ingredients: [
-        { name: base, amount: '4 cl', category: 'alcool', supermarketCommon: true, estimatedPrice: '~14€' },
-        { name: mixer, amount: '12 cl', category: 'diluant', supermarketCommon: true, estimatedPrice: '~1.80€' },
+        { name: base, amount: '4 cl', category: isMock ? 'diluant' : 'alcool', supermarketCommon: true },
+        { name: mixer, amount: '12 cl', category: 'diluant', supermarketCommon: true },
         { name: 'Glaçons pleins', amount: '4 cubes', category: 'autre', supermarketCommon: true },
         { name: 'Zeste de citron jaune', amount: '1 zeste', category: 'garniture', supermarketCommon: true, optional: true },
       ],
       steps: [
-        'Remplir un grand verre de glaçons.',
+        'Remplir un grand verre ballon de glaçons jusqu’aux deux tiers.',
         `Verser 4 cl de ${base}.`,
-        `Allonger avec 12 cl de ${mixer} bien frais.`,
-        'Exprimer un zeste de citron sur le dessus et remuer délicatement.',
+        `Allonger délicatement avec 12 cl de ${mixer} pour préserver les bulles.`,
+        'Exprimer le zeste de citron au-dessus du verre avant de le déposer.',
       ],
       glassType: 'Grand verre Highball',
       prepTimeMinutes: 2,
       difficulty: 'Très facile',
       distinctIngredientsCount: 3,
-      estimatedCost: { min: 1.6, max: 2.3, currency: 'EUR', status: 'estime', note: 'Prix moyen par verre calculé sur les portions réelles.' },
-      aromaticCoherence: `La neutralité et la vivacité de ${base} sont parfaitement équilibrées par l’effervescence et les saveurs de ${mixer}.`,
-      simplerAlternative: 'Remplacer le diluant par de la limonade standard ou du soda citron.',
-      mocktailVariant: `Remplacer ${base} par 2 cl de jus de pomme ou de raisin blanc pour conserver le corps sans alcool.`,
+      estimatedCost: { min: 1.5, max: 2.2, currency: 'EUR', status: 'estime', note: 'Prix moyen par verre calculé sur les portions réelles.' },
+      aromaticCoherence: `L'effervescence de ${mixer} aère le profil de ${base} sans masquer sa finesse.`,
+      simplerAlternative: 'Remplacer le diluant par de la limonade standard.',
+      mocktailVariant: 'Cette recette est déjà conçue sans alcool.' ,
       allergens: [],
-      alcoholEstimate: 'Modéré (~8% vol.)',
-      imageUrl: pickCocktailPhoto(0, base),
+      alcoholEstimate: isMock ? '0.0% Sans alcool' : 'Modéré (~8% vol.)',
+      timerSeconds: 12,
       isExample: true,
-      createdAt: new Date().toISOString(),
     },
     {
-      id: `tailored-${Date.now()}-1`,
-      name: `Signature ${base.split(' ')[0]} Velvet`,
+      id: `fallback-${Date.now()}-1`,
+      name: `Atelier Signature ${base.split(' ')[0]}`,
       type: 'signature',
       tagline: `Le parfait équilibre entre ${base}, ${mixer} et ${aromatic}`,
-      description: `La création signature du laboratoire : une synergie raffinée entre la base alcoolisée, la texture apportée par ${aromatic} et le peps de ${mixer}.`,
+      description: `Une synergie raffinée entre la base, la texture de ${aromatic} et le peps de ${mixer}.`,
       tasteProfile: {
         primaryNotes: [base, aromatic, mixer],
         sweetness: config.sweetness || 3,
@@ -252,38 +333,36 @@ function generateTailoredFallback(config: any): CocktailRecipe[] {
         profileName: config.profileName || 'Fruits noirs : mûre, cassis, myrtille',
       },
       ingredients: [
-        { name: base, amount: '4 cl', category: 'alcool', supermarketCommon: true },
+        { name: base, amount: '4 cl', category: isMock ? 'diluant' : 'alcool', supermarketCommon: true },
         { name: aromatic, amount: '1.5 cl', category: 'sirop', supermarketCommon: true, formatAdvice: 'Préférer un flacon 25cl' },
         { name: mixer, amount: '10 cl', category: 'diluant', supermarketCommon: true },
         { name: 'Quartier de citron vert', amount: '1 quartier pressé', category: 'garniture', supermarketCommon: true },
       ],
       steps: [
-        `Dans un verre ballon rafraîchi, verser 4 cl de ${base} et 1.5 cl de ${aromatic}.`,
+        `Dans un verre rafraîchi, verser 4 cl de ${base} et 1.5 cl de ${aromatic}.`,
         'Presser le quartier de citron vert frais.',
         'Ajouter de gros glaçons jusqu’au sommet.',
-        `Compléter délicatement avec 10 cl de ${mixer}.`,
-        'Mélanger une fois d’un geste ascendant pour respecter la couleur en dégradé.',
+        `Compléter avec 10 cl de ${mixer} et remuer une fois d’un geste ascendant.`,
       ],
       glassType: 'Verre Ballon ou Tumbler large',
       prepTimeMinutes: 3,
       difficulty: 'Facile',
       distinctIngredientsCount: 4,
-      estimatedCost: { min: 2.1, max: 2.8, currency: 'EUR', status: 'estime', note: 'Ingrédients de supermarché standard.' },
-      aromaticCoherence: `L’acidité du citron vert réveille les notes gourmandes de ${aromatic}, tandis que ${base} assure la longueur en bouche.`,
-      simplerAlternative: `Remplacer ${aromatic} par du sirop de grenadine ou de framboise classique.`,
-      mocktailVariant: `Omettre ${base} et doubler la dose de ${mixer} avec une pointe de gingembre frais.`,
+      estimatedCost: { min: 2.0, max: 2.7, currency: 'EUR', status: 'estime', note: 'Ingrédients de supermarché standard.' },
+      aromaticCoherence: `L’acidité du citron vert tranche la rondeur de ${aromatic}, tandis que ${base} structure le milieu de bouche.`,
+      simplerAlternative: 'Remplacer par un filet de sirop de grenadine.',
+      mocktailVariant: `Supprimer la base et allonger d'eau gazeuse avec un trait de cranberry.`,
       allergens: [],
-      alcoholEstimate: 'Modéré (~9% vol.)',
-      imageUrl: pickCocktailPhoto(1, aromatic),
+      alcoholEstimate: isMock ? '0.0% Sans alcool' : 'Modéré (~9% vol.)',
+      timerSeconds: 15,
       isExample: true,
-      createdAt: new Date().toISOString(),
     },
     {
-      id: `tailored-${Date.now()}-2`,
-      name: `L’Insoumis ${base.split(' ')[0]} & Spices`,
+      id: `fallback-${Date.now()}-2`,
+      name: `L’Insoumis ${base.split(' ')[0]} Botanique`,
       type: 'audacieuse',
-      tagline: `Un twist inattendu mariant tension végétale et vivacité pétillante`,
-      description: `Une interprétation plus osée et aromatique : des contrastes de températures et de textures qui intriguent le palais sans le brusquer.`,
+      tagline: `Une tension vive associant notes botaniques et fraîcheur épicée`,
+      description: `Une interprétation plus osée et aromatique : des contrastes stimulants qui éveillent le palais.`,
       tasteProfile: {
         primaryNotes: [base, 'Épice vive', mixer],
         sweetness: Math.max(1, (config.sweetness || 3) - 1),
@@ -292,57 +371,61 @@ function generateTailoredFallback(config: any): CocktailRecipe[] {
         profileName: 'Très original, mais facile à apprécier',
       },
       ingredients: [
-        { name: base, amount: '4 cl', category: 'alcool', supermarketCommon: true },
+        { name: base, amount: '4 cl', category: isMock ? 'diluant' : 'alcool', supermarketCommon: true },
         { name: mixer, amount: '8 cl', category: 'diluant', supermarketCommon: true },
         { name: 'Gingembre frais ou menthe', amount: '2 fines lamelles', category: 'garniture', supermarketCommon: true },
         { name: 'Quelques gouttes de citron vert', amount: '0.5 cl', category: 'autre', supermarketCommon: true },
       ],
       steps: [
-        'Écraser légèrement le gingembre ou frapper la menthe au fond du verre pour libérer ses essences.',
-        `Ajouter les 4 cl de ${base} et le jus de citron.`,
-        'Remplir de glace pilée ou de glaçons.',
-        `Napper avec 8 cl de ${mixer}.`,
-        'Servir avec une paille courte en verre.',
+        'Écraser légèrement le gingembre ou claquer la menthe au fond du verre pour libérer ses huiles essentielles.',
+        `Ajouter les 4 cl de ${base} et le jus de citron vert.`,
+        'Remplir de glaçons.',
+        `Napper avec 8 cl de ${mixer} et déguster à petites gorgées.`,
       ],
-      glassType: 'Verre Old Fashioned ou Tumbler',
+      glassType: 'Verre Old Fashioned',
       prepTimeMinutes: 3,
       difficulty: 'Facile',
       distinctIngredientsCount: 4,
-      estimatedCost: { min: 2.3, max: 3.1, currency: 'EUR', status: 'estime', note: 'Prix indicatif à vérifier.' },
+      estimatedCost: { min: 2.2, max: 3.0, currency: 'EUR', status: 'estime', note: 'Prix indicatif à vérifier.' },
       aromaticCoherence: 'Le piquant aromatique stimule les récepteurs gustatifs et amplifie la fraîcheur de la boisson.',
-      simplerAlternative: 'Remplacer le gingembre frais par une pincée d’écorce d’orange ou du poivre rose concassé.',
-      mocktailVariant: 'Remplacer l’alcool par une infusion de thé vert glacé tonifiée au citron.',
+      simplerAlternative: 'Remplacer le gingembre par une fine tranche de concombre.',
+      mocktailVariant: 'Infusion de menthe et tonic concombre.',
       allergens: [],
-      alcoholEstimate: 'Modéré (~9.5% vol.)',
-      imageUrl: pickCocktailPhoto(2, 'insoumis'),
+      alcoholEstimate: isMock ? '0.0% Sans alcool' : 'Modéré (~9% vol.)',
+      timerSeconds: 20,
       isExample: true,
-      createdAt: new Date().toISOString(),
     },
   ];
+
+  return validateAndNormalizeRecipes(raw, config, 'reference');
 }
 
-// Endpoint: Generate cocktails from Lab configuration
+// ENDPOINT: Generate cocktails
 app.post('/api/cocktails/generate', async (req: Request, res: Response) => {
-  const config = req.body;
-  const prompt = `Demande MIXLAB :
-- Alcool(s) : ${config.selectedBases?.length ? config.selectedBases.join(', ') : 'Vodka ou Gin'}
+  const config = req.body as CreationConfig;
+  const prompt = `Demande de création MIXLAB :
+- Intention libre exprimée par l'utilisateur : ${config.freeIntent ? `"${config.freeIntent}"` : 'Aucune intention particulière'}
+- Mode Mocktail 100% Sans Alcool : ${config.isMocktailMode ? 'OUI (Strictement 0.0% alcool, concevoir un mocktail sophistiqué)' : 'Non (cocktail avec alcool)'}
+- Alcool(s) de base : ${config.isMocktailMode ? 'AUCUN' : (config.selectedBases?.length ? config.selectedBases.join(', ') : 'Au choix')}
 - Contrainte 1 bouteille : ${config.singleBottleOnly ? 'OUI' : 'Non'}
-- Diluant(s) : ${config.selectedMixers?.length ? config.selectedMixers.join(', ') : 'Schweppes Pink Tonic ou Limonade'}
-- Options aromatiques : ${config.selectedAromatics?.length ? config.selectedAromatics.join(', ') : 'Sirop de mûre, citron vert'}
+- Diluant(s) : ${config.selectedMixers?.length ? config.selectedMixers.join(', ') : 'Au choix'}
+- Options aromatiques : ${config.selectedAromatics?.length ? config.selectedAromatics.join(', ') : 'Au choix'}
 - Profil aromatique : ${config.profileName || 'Fruité et équilibré'}
 - Fruité : ${config.fruitiness || 3}/5, Sucre : ${config.sweetness || 3}/5, Originalité : ${config.originality || 3}/5
 - Consensuel : ${config.crowdPleaser ? 'Oui' : 'Standard'}
-Génère les 3 recettes : Consensuelle, Signature, Audacieuse.`;
+- Nombre de verres prévus : ${config.servings || 1}
+- Filtres : ${config.advancedFilters?.frenchSupermarketOnly ? 'Supermarché français uniquement' : ''} ${config.advancedFilters?.noSyrup ? 'Sans sirop' : ''} ${config.advancedFilters?.noFreshFruits ? 'Sans fruits frais' : ''}
+
+Génère 3 recettes cohérentes : 1 Consensuelle, 1 Signature, 1 Audacieuse.`;
 
   try {
     if (!process.env.GEMINI_API_KEY) {
       const fallback = generateTailoredFallback(config);
-      return res.json({ success: true, recipes: fallback, mode: 'demo', notice: 'Exemple prédéfini (mode démo).' });
+      return res.json({ success: true, recipes: fallback, mode: 'demo', notice: 'Exemple prédéfini de référence (clé non configurée).' });
     }
 
-    // Try primary gemini-3.8-flash with timeout
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT_GEMINI')), 6500)
+      setTimeout(() => reject(new Error('TIMEOUT_GEMINI')), 7500)
     );
 
     const generatePromise = ai.models.generateContent({
@@ -359,32 +442,26 @@ Génère les 3 recettes : Consensuelle, Signature, Audacieuse.`;
     const text = response.text?.trim();
     if (!text) throw new Error('Empty response');
 
-    const rawRecipes = JSON.parse(text) as Omit<CocktailRecipe, 'id' | 'imageUrl' | 'createdAt'>[];
-    const recipes: CocktailRecipe[] = rawRecipes.map((recipe, index) => ({
-      ...recipe,
-      id: `mixlab-${Date.now()}-${index}`,
-      imageUrl: pickCocktailPhoto(index, recipe.name),
-      isExample: false,
-      createdAt: new Date().toISOString(),
-    }));
+    const rawRecipes = JSON.parse(text);
+    const validated = validateAndNormalizeRecipes(rawRecipes, config, 'gemini_ia');
 
-    return res.json({ success: true, recipes, mode: 'live' });
+    return res.json({ success: true, recipes: validated, mode: 'live' });
   } catch (err: any) {
-    console.warn('Gemini 3.8 Flash unavailable or timed out, generating tailored mixology fallback:', err?.message || err);
-    const fallbackRecipes = generateTailoredFallback(config);
+    console.warn('Gemini generateContent fallback:', err?.message || err);
+    const fallback = generateTailoredFallback(config);
     return res.json({
       success: true,
-      recipes: fallbackRecipes,
+      recipes: fallback,
       mode: 'fallback',
-      notice: 'Mode démo actif : recette adaptée à vos ingrédients suite à une forte demande momentanée sur les serveurs d’IA.',
+      notice: 'Mode démo : proposition adaptée à vos ingrédients suite à une forte demande momentanée sur les serveurs d’IA.',
     });
   }
 });
 
-// Endpoint: Surprise Me mode
+// ENDPOINT: Surprise Me mode
 app.post('/api/cocktails/surprise', async (req: Request, res: Response) => {
   const { preferredBases } = req.body;
-  const config = {
+  const config: Partial<CreationConfig> = {
     selectedBases: preferredBases?.length ? preferredBases : ['Vodka classique', 'Gin', 'Rhum blanc'],
     selectedMixers: ['Schweppes Pink Tonic', 'Ginger Beer', 'Jus de Cranberry'],
     selectedAromatics: ['Sirop de mûre', 'Citron vert frais', 'Menthe'],
@@ -400,12 +477,12 @@ app.post('/api/cocktails/surprise', async (req: Request, res: Response) => {
     }
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT_GEMINI')), 6000)
+      setTimeout(() => reject(new Error('TIMEOUT_GEMINI')), 6500)
     );
 
     const generatePromise = ai.models.generateContent({
       model: 'gemini-3.8-flash',
-      contents: `Génère 3 cocktails surprises originaux et réalisables (Consensuelle, Signature, Audacieuse). Bases : ${config.selectedBases.join(', ')}.`,
+      contents: `Génère 3 cocktails surprises originaux et réalisables (Consensuelle, Signature, Audacieuse). Bases autorisées : ${config.selectedBases?.join(', ')}.`,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
@@ -417,24 +494,126 @@ app.post('/api/cocktails/surprise', async (req: Request, res: Response) => {
     const text = response.text?.trim();
     if (!text) throw new Error('Empty response');
 
-    const rawRecipes = JSON.parse(text) as Omit<CocktailRecipe, 'id' | 'imageUrl' | 'createdAt'>[];
-    const recipes: CocktailRecipe[] = rawRecipes.map((recipe, index) => ({
-      ...recipe,
-      id: `surprise-${Date.now()}-${index}`,
-      imageUrl: pickCocktailPhoto(index, recipe.name),
-      isExample: false,
-      createdAt: new Date().toISOString(),
-    }));
-
-    return res.json({ success: true, recipes, mode: 'live' });
+    const raw = JSON.parse(text);
+    const validated = validateAndNormalizeRecipes(raw, config, 'gemini_ia');
+    return res.json({ success: true, recipes: validated, mode: 'live' });
   } catch (err) {
     return res.json({
       success: true,
       recipes: generateTailoredFallback(config),
       mode: 'fallback',
-      notice: 'Mode surprise prêt.',
+      notice: 'Mode surprise de référence actif.',
     });
   }
+});
+
+// ENDPOINT: Rebalance recipe with AI
+app.post('/api/cocktails/rebalance', async (req: Request, res: Response) => {
+  const { originalRecipe, userTweak } = req.body;
+
+  if (!originalRecipe || !userTweak) {
+    return res.status(400).json({ success: false, message: 'Paramètres manquants' });
+  }
+
+  const prompt = `Voici une recette de cocktail existante :
+Nom : ${originalRecipe.name}
+Ingrédients actuels : ${JSON.stringify(originalRecipe.ingredients)}
+Étapes : ${JSON.stringify(originalRecipe.steps)}
+
+L'utilisateur demande cette modification : "${userTweak}"
+(Ex: remplacer un ingrédient, baisser le sucre, augmenter la dilution, rendre sans alcool).
+
+Rééquilibre harmonieusement la recette pour respecter cette demande tout en préservant la cohérence aromatique.`;
+
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      // Offline fallback: tweak amounts or return modified copy
+      const modified: CocktailRecipe = {
+        ...originalRecipe,
+        id: `rebalanced-${Date.now()}`,
+        name: `${originalRecipe.name} (Ajusté)`,
+        description: `${originalRecipe.description} (Rééquilibré pour : ${userTweak})`,
+        source: 'user_custom',
+      };
+      return res.json({ success: true, recipe: modified, mode: 'demo' });
+    }
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT_REBALANCE')), 5000)
+    );
+
+    const rebalancePromise = ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: (RECIPES_SCHEMA.items as any),
+        },
+      },
+    });
+
+    const response = (await Promise.race([rebalancePromise, timeoutPromise])) as any;
+    const text = response.text?.trim();
+    if (!text) throw new Error('Empty rebalance response');
+
+    const list = JSON.parse(text);
+    const validated = validateAndNormalizeRecipes(list, {}, 'user_custom');
+    return res.json({ success: true, recipe: validated[0] || originalRecipe, mode: 'live' });
+  } catch (err) {
+    console.warn('Rebalance fallback:', err);
+    const modified: CocktailRecipe = {
+      ...originalRecipe,
+      id: `rebalanced-${Date.now()}`,
+      name: `${originalRecipe.name} (Ajusté)`,
+      source: 'user_custom',
+    };
+    return res.json({ success: true, recipe: modified, mode: 'fallback' });
+  }
+});
+
+// ENDPOINT: Party Menu Planner
+app.post('/api/cocktails/party-menu', async (req: Request, res: Response) => {
+  const { guestCount = 8, budget = 50, theme = 'Convivial & Fruité' } = req.body;
+
+  // Build consolidated party menu
+  const guestMultiplier = Math.ceil(guestCount / 4);
+  const baseMenu = INITIAL_CURATED_COCKTAILS.slice(0, 3);
+
+  const consolidatedShopping = [
+    { item: 'Vodka classique (70cl)', bottlesNeeded: `${Math.max(1, Math.ceil((guestCount * 4) / 70))} bouteille(s)`, category: 'alcool' },
+    { item: 'Schweppes Pink Tonic (pack 6x25cl)', bottlesNeeded: `${Math.ceil((guestCount * 12) / 150)} pack(s)`, category: 'diluant' },
+    { item: 'Sirop de mûre (flacon 25cl)', bottlesNeeded: '1 flacon', category: 'sirop' },
+    { item: 'Citrons verts frais', bottlesNeeded: `${Math.ceil(guestCount * 0.75)} citrons`, category: 'garniture' },
+    { item: 'Glaçons pleins (sacs 2kg)', bottlesNeeded: `${Math.ceil(guestCount / 5)} sac(s)`, category: 'autre' },
+  ];
+
+  const prepTimeline = [
+    'J-1 : Placer les softs et sirops au réfrigérateur. Vérifier la réserve de glaçons.',
+    'H-2 : Découper les agrumes (quartiers de citron vert) et les conserver dans une boîte hermétique au frais.',
+    'H-30 min : Disposer les verres, cuillères et doseurs sur le bar.',
+    'À l’arrivée : Servir les premiers cocktails bien frais pour lancer la soirée.',
+  ];
+
+  const plan: PartyPlan = {
+    guestCount,
+    budgetTotalEur: budget,
+    theme,
+    recipes: baseMenu,
+    mocktailRecipe: {
+      ...baseMenu[0],
+      id: 'party-mocktail-1',
+      name: 'Virgin Berry Mist',
+      alcoholEstimate: '0.0% Sans alcool',
+      isMocktailOnly: true,
+    },
+    consolidatedShopping,
+    prepTimeline,
+  };
+
+  return res.json({ success: true, plan });
 });
 
 // Vite dev server mounting or static production serving

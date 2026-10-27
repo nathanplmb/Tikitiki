@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AmbientBackground } from './components/AmbientBackground';
+import { AmbientBackground, AmbientTheme } from './components/AmbientBackground';
 import { MobileFrameWrapper } from './components/MobileFrameWrapper';
 import { Navigation, ActiveTab } from './components/Navigation';
 import { Header } from './components/Header';
@@ -12,12 +12,15 @@ import { DiscoveriesView } from './components/DiscoveriesView';
 import { MyCollectionView } from './components/MyCollectionView';
 import { MyBarView } from './components/MyBarView';
 import { ShoppingListModal } from './components/ShoppingListModal';
+import { PartyPlannerView } from './components/PartyPlannerView';
 import { NeonLiquidShaker } from './components/NeonLiquidShaker';
 import { 
   CocktailRecipe, 
   CreationConfig, 
   UserBarItem, 
-  ShoppingItem 
+  ShoppingItem,
+  UserTastePreferences,
+  PartyPlan
 } from './types/cocktail';
 import { 
   getFavorites, 
@@ -28,7 +31,12 @@ import {
   saveUserBar, 
   getShoppingList, 
   saveShoppingList,
-  addRecipeToShoppingList
+  addRecipeToShoppingList,
+  getTastePreferences,
+  saveTastePreferences,
+  resetTastePreferences,
+  exportUserDataJSON,
+  importUserDataJSON
 } from './utils/storage';
 import { INITIAL_CURATED_COCKTAILS } from './data/curatedCocktails';
 import { PairingSuggestion } from './data/ingredients';
@@ -40,6 +48,7 @@ export default function App() {
   const [history, setHistory] = useState<CocktailRecipe[]>([]);
   const [userBar, setUserBar] = useState<UserBarItem[]>([]);
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
+  const [tastePrefs, setTastePrefs] = useState<UserTastePreferences>(getTastePreferences());
   
   // Active Generated Recipes
   const [currentRecipes, setCurrentRecipes] = useState<CocktailRecipe[]>([]);
@@ -60,7 +69,20 @@ export default function App() {
     setHistory(getHistory());
     setUserBar(getUserBar());
     setShoppingList(getShoppingList());
+    setTastePrefs(getTastePreferences());
   }, []);
+
+  // Compute adaptive ambient theme
+  const getActiveAmbientTheme = (): AmbientTheme => {
+    if (selectedCocktail?.tasteProfile?.colorTheme) {
+      return selectedCocktail.tasteProfile.colorTheme;
+    }
+    if (currentRecipes.length > 0 && currentRecipes[0].tasteProfile?.colorTheme) {
+      return currentRecipes[0].tasteProfile.colorTheme;
+    }
+    if (activeTab === 'party') return 'tropical';
+    return 'neutral';
+  };
 
   // Handler: Generate Cocktails from Lab
   const handleGenerate = async (config: CreationConfig) => {
@@ -86,9 +108,8 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to generate cocktails:', err);
-      // Fallback
       setCurrentRecipes(INITIAL_CURATED_COCKTAILS);
-      setDemoNotice('Exemple prédéfini utilisé (mode secours).');
+      setDemoNotice('Exemple prédéfini de référence (serveurs IA occupés).');
     } finally {
       setIsGenerating(false);
     }
@@ -120,6 +141,26 @@ export default function App() {
       setActiveTab('lab');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Handler: Rebalance recipe with AI
+  const handleRebalanceWithAI = async (recipe: CocktailRecipe, tweak: string) => {
+    try {
+      const res = await fetch('/api/cocktails/rebalance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ originalRecipe: recipe, userTweak: tweak }),
+      });
+      const data = await res.json();
+      if (data.recipe) {
+        setSelectedCocktail(data.recipe);
+        // update in favorites or history
+        setFavorites((prev) => prev.map((f) => (f.id === recipe.id ? data.recipe : f)));
+        sounds.playSuccessChime();
+      }
+    } catch (err) {
+      console.error('Rebalance error:', err);
     }
   };
 
@@ -181,7 +222,7 @@ export default function App() {
   const handleSaveRating = (recipeId: string, rating: number, tags: string[], notes: string) => {
     const updateCocktail = (c: CocktailRecipe) => {
       if (c.id === recipeId) {
-        return { ...c, userRating: rating, userTags: tags, userNotes: notes };
+        return { ...c, userRating: rating, userTags: tags, userNotes: notes, testedByUser: true };
       }
       return c;
     };
@@ -191,7 +232,47 @@ export default function App() {
     saveFavorites(updatedFavs);
 
     if (selectedCocktail && selectedCocktail.id === recipeId) {
-      setSelectedCocktail({ ...selectedCocktail, userRating: rating, userTags: tags, userNotes: notes });
+      setSelectedCocktail({ ...selectedCocktail, userRating: rating, userTags: tags, userNotes: notes, testedByUser: true });
+    }
+  };
+
+  // Taste preferences update
+  const handleUpdateTastePrefs = (prefs: UserTastePreferences) => {
+    setTastePrefs(prefs);
+    saveTastePreferences(prefs);
+  };
+
+  const handleResetTastePrefs = () => {
+    const reset = resetTastePreferences();
+    setTastePrefs(reset);
+  };
+
+  // Export / Import JSON for Cloud Sync Readiness
+  const handleExportData = () => {
+    const jsonStr = exportUserDataJSON();
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mixlab_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    sounds.playTap();
+  };
+
+  const handleImportData = async (file: File) => {
+    try {
+      const text = await file.text();
+      const success = importUserDataJSON(text);
+      if (success) {
+        setFavorites(getFavorites());
+        setUserBar(getUserBar());
+        setShoppingList(getShoppingList());
+        setTastePrefs(getTastePreferences());
+        sounds.playSuccessChime();
+      }
+    } catch (e) {
+      console.error('Import error:', e);
     }
   };
 
@@ -228,6 +309,30 @@ export default function App() {
     setShoppingList(updated);
   };
 
+  const handleAddPartyPlanToShopping = (plan: PartyPlan) => {
+    const current = getShoppingList();
+    const updated = [...current];
+
+    plan.consolidatedShopping.forEach((s) => {
+      const existing = updated.find((item) => item.name.toLowerCase() === s.item.toLowerCase());
+      if (existing) {
+        existing.totalQuantity = s.bottlesNeeded;
+      } else {
+        updated.push({
+          id: `party-shop-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          name: s.item,
+          category: s.category as any,
+          recipesUsing: [`Soirée (${plan.guestCount} invités)`],
+          formatNote: s.bottlesNeeded,
+          checked: false,
+        });
+      }
+    });
+
+    setShoppingList(updated);
+    saveShoppingList(updated);
+  };
+
   const handleToggleShoppingItem = (id: string) => {
     const updated = shoppingList.map((item) =>
       item.id === id ? { ...item, checked: !item.checked } : item
@@ -242,16 +347,16 @@ export default function App() {
   };
 
   return (
-    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Dynamic Ambient Background */}
-      <AmbientBackground />
+    <div className="relative min-h-screen text-slate-100 flex flex-col font-sans selection:bg-purple-500/30 selection:text-white">
+      {/* Dynamic Adaptive Ambient Lighting */}
+      <AmbientBackground theme={getActiveAmbientTheme()} />
 
-      {/* Exceptional AI Liquid Shaker Animation */}
+      {/* Refined Liquid Mixology Loader */}
       <NeonLiquidShaker isGenerating={isGenerating} />
 
-      {/* Smartphone Device Immersion Wrapper */}
+      {/* Mobile-First Studio Wrapper */}
       <MobileFrameWrapper>
-        {/* Navigation for Desktop sidebar & Mobile bottom bar */}
+        {/* Navigation for Desktop sidebar & Mobile bottom tab bar */}
         <Navigation
           activeTab={activeTab}
           setActiveTab={(tab) => {
@@ -272,11 +377,15 @@ export default function App() {
               setActiveTab('discoveries');
             }}
             onOpenShopping={() => setIsShoppingOpen(true)}
+            onOpenParty={() => {
+              sounds.playTap();
+              setActiveTab('party');
+            }}
             shoppingCount={shoppingList.filter((i) => !i.checked).length}
             isLoadingSurprise={isGenerating}
           />
 
-          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-6xl mx-auto w-full">
+          <main className="flex-1 px-4 sm:px-6 py-6 max-w-4xl mx-auto w-full">
             {activeTab === 'home' && (
               <Dashboard
                 onStartLab={() => {
@@ -288,6 +397,10 @@ export default function App() {
                 onOpenRoulette={() => {
                   sounds.playTap();
                   setActiveTab('discoveries');
+                }}
+                onOpenParty={() => {
+                  sounds.playTap();
+                  setActiveTab('party');
                 }}
                 recentCocktails={history}
                 onSelectCocktail={(c) => setSelectedCocktail(c)}
@@ -341,6 +454,11 @@ export default function App() {
                   setCurrentRecipes([]);
                   setActiveTab('lab');
                 }}
+                tastePrefs={tastePrefs}
+                onUpdateTastePrefs={handleUpdateTastePrefs}
+                onResetTastePrefs={handleResetTastePrefs}
+                onExportData={handleExportData}
+                onImportData={handleImportData}
               />
             )}
 
@@ -351,6 +469,13 @@ export default function App() {
                 onAddItem={handleAddBarItem}
                 onRemoveItem={handleRemoveBarItem}
                 onGenerateFromBar={handleGenerateFromBar}
+              />
+            )}
+
+            {activeTab === 'party' && (
+              <PartyPlannerView
+                onAddAllToShoppingList={handleAddPartyPlanToShopping}
+                onSelectCocktail={(c) => setSelectedCocktail(c)}
               />
             )}
           </main>
@@ -365,6 +490,7 @@ export default function App() {
         isFavorite={Boolean(selectedCocktail && favorites.some((f) => f.id === selectedCocktail.id))}
         onAddToShoppingList={handleAddToShopping}
         onSaveRating={handleSaveRating}
+        onRebalanceWithAI={handleRebalanceWithAI}
         onOpenCompare={(c) => {
           if (favorites.length > 0 && favorites[0].id !== c.id) {
             setCompareCocktails([c, favorites[0]]);

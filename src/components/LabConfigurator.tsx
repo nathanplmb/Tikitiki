@@ -2,17 +2,14 @@ import React, { useState } from 'react';
 import { 
   Check, 
   FlaskConical, 
-  Sparkles, 
   SlidersHorizontal, 
   Search, 
-  AlertTriangle, 
   ChevronRight, 
   ChevronLeft, 
-  Info, 
-  Flame, 
-  ShoppingBag, 
-  RotateCcw,
-  CheckCircle2
+  Wine,
+  Sparkles,
+  ShoppingBag,
+  Leaf
 } from 'lucide-react';
 import { CreationConfig, UserBarItem } from '../types/cocktail';
 import { 
@@ -20,9 +17,8 @@ import {
   MIXERS, 
   AROMATICS, 
   FLAVOR_PROFILES, 
-  FlavorProfile,
-  IngredientOption 
 } from '../data/ingredients';
+import { sounds } from '../utils/audio';
 
 interface LabConfiguratorProps {
   onGenerate: (config: CreationConfig) => void;
@@ -42,6 +38,12 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
   const [selectedMixerCategory, setSelectedMixerCategory] = useState<string>('all');
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   const [customAlcohol, setCustomAlcohol] = useState<string>('');
+
+  // Free text intent
+  const [freeIntent, setFreeIntent] = useState<string>(initialConfig?.freeIntent || '');
+
+  // Mocktail mode toggle
+  const [isMocktailMode, setIsMocktailMode] = useState<boolean>(initialConfig?.isMocktailMode || false);
 
   // Form State
   const [selectedBases, setSelectedBases] = useState<string[]>(
@@ -68,7 +70,7 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
 
   // Advanced Filters
   const [budgetLimit, setBudgetLimit] = useState<'low' | 'medium' | 'any'>('low');
-  const [servings, setServings] = useState<number>(2);
+  const [servings, setServings] = useState<number>(initialConfig?.servings || 2);
   const [maxBottlesToCarry, setMaxBottlesToCarry] = useState<number>(2);
   const [useBarOnly, setUseBarOnly] = useState<boolean>(false);
   const [prepTimeMax, setPrepTimeMax] = useState<number>(5);
@@ -79,6 +81,7 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
 
   // Toggle helpers
   const handleToggleBase = (name: string) => {
+    sounds.playTap();
     if (singleBottleOnly) {
       setSelectedBases([name]);
     } else {
@@ -94,6 +97,7 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
 
   const handleAddCustomAlcohol = () => {
     if (customAlcohol.trim()) {
+      sounds.playTap();
       if (singleBottleOnly) {
         setSelectedBases([customAlcohol.trim()]);
       } else {
@@ -104,6 +108,7 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
   };
 
   const handleToggleMixer = (name: string) => {
+    sounds.playTap();
     if (selectedMixers.includes(name)) {
       setSelectedMixers(selectedMixers.filter((m) => m !== name));
     } else {
@@ -112,6 +117,7 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
   };
 
   const handleToggleAromatic = (name: string) => {
+    sounds.playTap();
     if (selectedAromatics.includes(name)) {
       setSelectedAromatics(selectedAromatics.filter((a) => a !== name));
     } else {
@@ -120,16 +126,20 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
   };
 
   const handleSubmit = () => {
+    sounds.playTap();
     const config: CreationConfig = {
-      selectedBases,
+      freeIntent: freeIntent.trim() || undefined,
+      isMocktailMode,
+      selectedBases: isMocktailMode ? [] : selectedBases,
       singleBottleOnly,
       selectedMixers: selectedMixers.length > 0 ? selectedMixers : ['Eau pétillante'],
-      selectedAromatics: noSyrup ? selectedAromatics.filter(a => !a.toLowerCase().includes('sirop')) : selectedAromatics,
+      selectedAromatics: noSyrup ? selectedAromatics.filter((a) => !a.toLowerCase().includes('sirop')) : selectedAromatics,
       profileName: selectedProfile,
       fruitiness,
       sweetness,
       originality,
       crowdPleaser,
+      servings,
       advancedFilters: {
         budgetLimit,
         servings,
@@ -160,62 +170,90 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
   });
 
   const steps = [
-    { num: 1, title: 'Base alcoolisée', subtitle: 'L’alcool principal' },
-    { num: 2, title: 'Diluants & Bulles', subtitle: 'Sodas, jus et effervescence' },
-    { num: 3, title: 'Options aromatiques', subtitle: 'Sirops, fruits et touches fraîches' },
-    { num: 4, title: 'Profil & Équilibre', subtitle: 'Profil de goût et intensité' },
+    { num: 1, title: isMocktailMode ? 'Base & Infusion' : 'Base alcoolisée' },
+    { num: 2, title: 'Diluants' },
+    { num: 3, title: 'Arômes & Fruits' },
+    { num: 4, title: 'Profil & Équilibre' },
   ];
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* HEADER OF THE LAB */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-mono mb-2">
-            <FlaskConical className="w-3.5 h-3.5" />
-            <span>CONFIGURATEUR MIXLAB</span>
+    <div className="space-y-6 pb-20">
+      {/* Header */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <h1 className="font-display font-bold text-2xl text-white">
+              Laboratoire de Création
+            </h1>
+            <p className="text-xs text-slate-400">
+              Compose ta boisson sur-mesure ou exprime ton envie en toute liberté.
+            </p>
           </div>
-          <h1 className="font-display font-extrabold text-2xl sm:text-4xl text-white">
-            Le Laboratoire de Création
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Sélectionne tes composants pour laisser l’IA générer 3 recettes uniques et cohérentes.
-          </p>
+
+          <button
+            onClick={() => {
+              sounds.playTap();
+              setShowAdvanced(!showAdvanced)}
+            }
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              showAdvanced
+                ? 'bg-white/15 text-white border border-white/20'
+                : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Filtres</span>
+          </button>
         </div>
 
-        {/* Advanced Filters Toggle Button */}
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
-            showAdvanced
-              ? 'bg-purple-500/20 text-purple-200 border border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)]'
-              : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
-          }`}
-        >
-          <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-          <span>Affiner ma recherche</span>
-          {showAdvanced && <span className="w-2 h-2 rounded-full bg-purple-400" />}
-        </button>
-      </div>
-
-      {/* ADVANCED FILTERS PANEL (COLLAPSIBLE) */}
-      {showAdvanced && (
-        <div className="p-6 rounded-2xl glass-panel border border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.15)] space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
-            <div className="flex items-center gap-2 text-sm font-display font-bold text-white">
-              <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-              <span>Filtres de recherche avancés</span>
-            </div>
-            <span className="text-xs text-slate-400">
-              Adapte les propositions à tes contraintes de soirée
+        {/* Free text intent input box */}
+        <div className="p-3.5 rounded-2xl glass-panel space-y-2 border border-white/10">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-300 font-medium flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+              <span>Intention libre (optionnel) :</span>
             </span>
+
+            {/* Mocktail Toggle Pill */}
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playTap();
+                setIsMocktailMode(!isMocktailMode);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${
+                isMocktailMode
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                  : 'bg-white/5 text-slate-400 border-white/10 hover:text-slate-200'
+              }`}
+            >
+              <Leaf className="w-3 h-3 text-emerald-400" />
+              <span>{isMocktailMode ? 'Mode Sans Alcool (0.0%)' : 'Activer Mode Mocktail'}</span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Servings */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono text-slate-300 uppercase">
-                Nombre de personnes : <span className="text-cyan-300 font-bold">{servings}</span>
+          <input
+            type="text"
+            placeholder="Ex : « Un cocktail acidulé et léger pour l’apéritif », « Très fruité avec des herbes fraîches »..."
+            value={freeIntent}
+            onChange={(e) => setFreeIntent(e.target.value)}
+            className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-white/20"
+          />
+        </div>
+      </div>
+
+      {/* Advanced Filters Drawer */}
+      {showAdvanced && (
+        <div className="p-5 rounded-2xl glass-panel border border-white/10 space-y-4">
+          <div className="text-xs font-semibold text-slate-300">
+            Contraintes logistiques
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[11px] text-slate-400 flex justify-between">
+                <span>Nombre de verres :</span>
+                <span className="text-white font-bold">{servings}</span>
               </label>
               <input
                 type="range"
@@ -224,41 +262,14 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
                 step="1"
                 value={servings}
                 onChange={(e) => setServings(parseInt(e.target.value, 10))}
-                className="w-full accent-cyan-400 cursor-pointer"
+                className="w-full accent-white cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>1 solo</span>
-                <span>2 duo</span>
-                <span>4 amis</span>
-                <span>8+ groupe</span>
-              </div>
             </div>
 
-            {/* Bottles to carry */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono text-slate-300 uppercase">
-                Max bouteilles à transporter : <span className="text-cyan-300 font-bold">{maxBottlesToCarry}</span>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="4"
-                step="1"
-                value={maxBottlesToCarry}
-                onChange={(e) => setMaxBottlesToCarry(parseInt(e.target.value, 10))}
-                className="w-full accent-cyan-400 cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>1 ultra léger</span>
-                <span>2 standard</span>
-                <span>4 complet</span>
-              </div>
-            </div>
-
-            {/* Preparation time */}
-            <div className="space-y-2">
-              <label className="text-xs font-mono text-slate-300 uppercase">
-                Temps de prépa max : <span className="text-cyan-300 font-bold">{prepTimeMax} min</span>
+            <div className="space-y-1">
+              <label className="text-[11px] text-slate-400 flex justify-between">
+                <span>Temps de prépa max :</span>
+                <span className="text-white font-bold">{prepTimeMax} min</span>
               </label>
               <input
                 type="range"
@@ -267,314 +278,166 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
                 step="1"
                 value={prepTimeMax}
                 onChange={(e) => setPrepTimeMax(parseInt(e.target.value, 10))}
-                className="w-full accent-cyan-400 cursor-pointer"
+                className="w-full accent-white cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>2 min express</span>
-                <span>5 min standard</span>
-                <span>10 min élaboré</span>
-              </div>
             </div>
           </div>
 
-          {/* Toggle Switches */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-white/5">
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5 text-xs text-slate-300">
+            <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white/5">
               <input
                 type="checkbox"
                 checked={frenchSupermarketOnly}
                 onChange={(e) => setFrenchSupermarketOnly(e.target.checked)}
-                className="w-4 h-4 rounded text-cyan-500 accent-cyan-400"
+                className="rounded accent-purple-400"
               />
-              <span className="text-xs text-slate-300">
-                Supermarchés français uniquement
-              </span>
+              <span>Supermarché courant</span>
             </label>
 
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all">
+            <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-white/5">
               <input
                 type="checkbox"
                 checked={noSyrup}
                 onChange={(e) => setNoSyrup(e.target.checked)}
-                className="w-4 h-4 rounded text-cyan-500 accent-cyan-400"
+                className="rounded accent-purple-400"
               />
-              <span className="text-xs text-slate-300">
-                Sans sirop (éviter les achats)
-              </span>
-            </label>
-
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all">
-              <input
-                type="checkbox"
-                checked={noFreshFruits}
-                onChange={(e) => setNoFreshFruits(e.target.checked)}
-                className="w-4 h-4 rounded text-cyan-500 accent-cyan-400"
-              />
-              <span className="text-xs text-slate-300">
-                Sans fruits frais à découper
-              </span>
-            </label>
-
-            <label className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 cursor-pointer hover:bg-white/[0.05] transition-all">
-              <input
-                type="checkbox"
-                checked={noEnergyDrinks}
-                onChange={(e) => setNoEnergyDrinks(e.target.checked)}
-                className="w-4 h-4 rounded text-cyan-500 accent-cyan-400"
-              />
-              <span className="text-xs text-slate-300">
-                Sans boissons énergisantes
-              </span>
+              <span>Sans sirop</span>
             </label>
           </div>
         </div>
       )}
 
-      {/* STEP PROGRESS BAR */}
-      <div className="glass-panel p-3 rounded-2xl border border-white/10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {steps.map((s) => {
-            const isCompleted = currentStep > s.num;
-            const isCurrent = currentStep === s.num;
-            return (
-              <button
-                key={s.num}
-                onClick={() => setCurrentStep(s.num)}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
-                  isCurrent
-                    ? 'bg-cyan-500/15 border border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] text-white'
-                    : isCompleted
-                    ? 'bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 text-slate-300'
-                    : 'bg-transparent text-slate-500 border border-transparent'
-                }`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
-                    isCurrent
-                      ? 'bg-cyan-400 text-slate-950'
-                      : isCompleted
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-white/5 text-slate-500'
-                  }`}
-                >
-                  {isCompleted ? <Check className="w-3.5 h-3.5" /> : s.num}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold truncate">{s.title}</div>
-                  <div className="text-[10px] text-slate-400 truncate hidden sm:block">
-                    {s.subtitle}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      {/* Step Indicator Tabs */}
+      <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-black/40 border border-white/5">
+        {steps.map((s) => {
+          const isCurrent = currentStep === s.num;
+          const isDone = currentStep > s.num;
+          return (
+            <button
+              key={s.num}
+              onClick={() => {
+                sounds.playTap();
+                setCurrentStep(s.num);
+              }}
+              className={`py-2 px-1 text-center rounded-xl text-[11px] font-medium transition-all truncate ${
+                isCurrent
+                  ? 'bg-white/15 text-white font-semibold'
+                  : isDone
+                  ? 'text-slate-300 hover:text-white'
+                  : 'text-slate-400'
+              }`}
+            >
+              {s.title}
+            </button>
+          );
+        })}
       </div>
 
-      {/* STEP CONTENT CONTAINER */}
-      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-white/10 relative min-h-[460px]">
-        {/* STEP 1: ALCOHOL BASE */}
+      {/* Step Panels */}
+      <div className="p-5 rounded-3xl glass-panel border border-white/10 min-h-[380px] flex flex-col justify-between">
+        {/* STEP 1: BASES */}
         {currentStep === 1 && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
-              <div>
-                <h2 className="font-display font-bold text-xl text-white">
-                  Étape 1 : Choisis ta base alcoolisée
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Une seule bouteille suffit pour concevoir d’excellents cocktails signatures.
-                </p>
+          <div className="space-y-4">
+            {isMocktailMode ? (
+              <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/20 text-xs text-emerald-200/90 space-y-1">
+                <strong>Mode 100% Mocktail Actif :</strong> L’IA construira une véritable boisson sans alcool avec des infusions, des agrumes et du corps, sans spiritueux.
               </div>
+            ) : (
+              <div className="flex items-center justify-between pb-2 border-b border-white/5 text-xs">
+                <span className="text-slate-300">Sélectionne ta base alcoolisée</span>
+                <label className="flex items-center gap-2 text-slate-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={singleBottleOnly}
+                    onChange={(e) => setSingleBottleOnly(e.target.checked)}
+                    className="rounded accent-purple-400"
+                  />
+                  <span>1 seule bouteille</span>
+                </label>
+              </div>
+            )}
 
-              {/* Single Bottle Mode Toggle */}
-              <label className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 cursor-pointer hover:bg-white/[0.08] transition-all">
-                <input
-                  type="checkbox"
-                  checked={singleBottleOnly}
-                  onChange={(e) => {
-                    setSingleBottleOnly(e.target.checked);
-                    if (e.target.checked && selectedBases.length > 1) {
-                      setSelectedBases([selectedBases[0]]);
-                    }
-                  }}
-                  className="w-4 h-4 rounded text-cyan-400 accent-cyan-400"
-                />
-                <span className="text-xs text-slate-200 font-medium">
-                  Mode « Une seule bouteille » (conseillé)
-                </span>
-              </label>
-            </div>
-
-            {/* Alcohols Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {ALCOHOL_BASES.map((alcohol) => {
-                const isSelected = selectedBases.includes(alcohol.name);
-                return (
-                  <div
-                    key={alcohol.id}
-                    onClick={() => handleToggleBase(alcohol.name)}
-                    className={`cursor-pointer p-4 rounded-2xl transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-cyan-500/15 border-2 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.25)]'
-                        : 'glass-panel-interactive border border-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono uppercase text-cyan-300">
-                          {alcohol.subCategory}
-                        </span>
-                        <div
-                          className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
-                            isSelected
-                              ? 'bg-cyan-400 text-black'
-                              : 'border border-white/20 bg-white/5'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                        </div>
+            {!isMocktailMode && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[360px] overflow-y-auto pr-1">
+                {ALCOHOL_BASES.map((b) => {
+                  const isSelected = selectedBases.includes(b.name);
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => handleToggleBase(b.name)}
+                      className={`cursor-pointer p-3 rounded-2xl border transition-all ${
+                        isSelected
+                          ? 'bg-white/15 border-white/30 text-white shadow-sm'
+                          : 'glass-panel-subtle border-white/5 text-slate-300 hover:border-white/15'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-slate-400 uppercase font-mono">{b.subCategory}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
                       </div>
-
-                      <h3 className="font-display font-bold text-base text-white">
-                        {alcohol.name}
-                      </h3>
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        {alcohol.description}
-                      </p>
+                      <div className="text-xs font-bold truncate">{b.name}</div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
 
-                    <div className="pt-3 mt-2 border-t border-white/5 text-[10px] font-mono text-slate-400 flex items-center justify-between">
-                      <span>Rayon supermarché</span>
-                      <span className="text-slate-300 capitalize">
-                        {alcohol.supermarketAvailability}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Custom Alcohol Adder */}
-            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/10 flex flex-col sm:flex-row items-center gap-3">
-              <span className="text-xs text-slate-300 shrink-0 font-medium">
-                Autre alcool personnalisé :
-              </span>
-              <input
-                type="text"
-                placeholder="ex. Cointreau, Mezcal, Saint-Germain..."
-                value={customAlcohol}
-                onChange={(e) => setCustomAlcohol(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCustomAlcohol()}
-                className="flex-1 w-full bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-              />
-              <button
-                onClick={handleAddCustomAlcohol}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-all shrink-0"
-              >
-                Ajouter
-              </button>
-            </div>
+            {!isMocktailMode && (
+              <div className="flex gap-2 pt-2">
+                <input
+                  type="text"
+                  placeholder="Autre alcool (ex: Cointreau, Mezcal)..."
+                  value={customAlcohol}
+                  onChange={(e) => setCustomAlcohol(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCustomAlcohol()}
+                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
+                <button
+                  onClick={handleAddCustomAlcohol}
+                  className="px-3 py-1.5 rounded-xl text-xs bg-white/10 text-white font-medium"
+                >
+                  Ajouter
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {/* STEP 2: MIXERS */}
         {currentStep === 2 && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
-              <div>
-                <h2 className="font-display font-bold text-xl text-white">
-                  Étape 2 : Choisis les diluants & boissons pétillantes
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Tu peux en sélectionner plusieurs, mais les recettes privilégient un diluant principal pour limiter les achats.
-                </p>
-              </div>
-
-              {/* Search & Filter Bar */}
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Chercher un diluant..."
-                    value={searchMixer}
-                    onChange={(e) => setSearchMixer(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950/60 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-white/5">
+              <span className="text-xs text-slate-300">Choisis les diluants</span>
+              <div className="relative w-44">
+                <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-2" />
+                <input
+                  type="text"
+                  placeholder="Filtrer..."
+                  value={searchMixer}
+                  onChange={(e) => setSearchMixer(e.target.value)}
+                  className="w-full pl-7 pr-2 py-1 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none"
+                />
               </div>
             </div>
 
-            {/* Category Filter Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              {['all', 'Sodas & pétillants', 'Boissons fruitées', 'Boissons énergisantes'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedMixerCategory(cat)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                    selectedMixerCategory === cat
-                      ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-                      : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 border border-white/5'
-                  }`}
-                >
-                  {cat === 'all' ? 'Tous les diluants' : cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Energy Drink Warning Banner */}
-            {!noEnergyDrinks && (
-              <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-600/30 flex items-start gap-3 text-xs text-amber-200/90">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p>
-                  <strong>Avertissement :</strong> La caféine des boissons énergisantes peut masquer la perception de l’ivresse sans réduire l’alcoolémie. MIXLAB ne les recommande pas par défaut.
-                </p>
-              </div>
-            )}
-
-            {/* Mixers Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[460px] overflow-y-auto pr-1">
-              {filteredMixers.map((mixer) => {
-                const isSelected = selectedMixers.includes(mixer.name);
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[340px] overflow-y-auto pr-1">
+              {filteredMixers.map((m) => {
+                const isSelected = selectedMixers.includes(m.name);
                 return (
                   <div
-                    key={mixer.id}
-                    onClick={() => handleToggleMixer(mixer.name)}
-                    className={`cursor-pointer p-3.5 rounded-2xl transition-all flex flex-col justify-between ${
+                    key={m.id}
+                    onClick={() => handleToggleMixer(m.name)}
+                    className={`cursor-pointer p-3 rounded-2xl border transition-all ${
                       isSelected
-                        ? 'bg-cyan-500/15 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
-                        : 'glass-panel-interactive border border-white/10 hover:border-white/20'
+                        ? 'bg-white/15 border-white/30 text-white shadow-sm'
+                        : 'glass-panel-subtle border-white/5 text-slate-300 hover:border-white/15'
                     }`}
                   >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono uppercase text-slate-400">
-                          {mixer.subCategory}
-                        </span>
-                        <div
-                          className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
-                            isSelected
-                              ? 'bg-cyan-400 text-black'
-                              : 'border border-white/20 bg-white/5'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                        </div>
-                      </div>
-
-                      <h3 className="font-display font-bold text-sm text-white">
-                        {mixer.name}
-                      </h3>
-                      <p className="text-xs text-slate-300">
-                        {mixer.description}
-                      </p>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-slate-400 uppercase font-mono">{m.subCategory}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
                     </div>
-
-                    {mixer.isEnergyDrink && (
-                      <span className="mt-2 text-[10px] text-amber-400/90 font-mono">
-                        Contient caféine
-                      </span>
-                    )}
+                    <div className="text-xs font-bold truncate">{m.name}</div>
                   </div>
                 );
               })}
@@ -584,318 +447,151 @@ export const LabConfigurator: React.FC<LabConfiguratorProps> = ({
 
         {/* STEP 3: AROMATICS */}
         {currentStep === 3 && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
-              <div>
-                <h2 className="font-display font-bold text-xl text-white">
-                  Étape 3 : Options aromatiques & garnitures
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Facultatif : choisis zéro, un ou plusieurs accents pour personnaliser ton mix.
-                </p>
-              </div>
-
-              {/* Anti-waste advice note */}
-              <div className="flex items-center gap-2 text-xs text-emerald-300 font-mono">
-                <ShoppingBag className="w-4 h-4 text-emerald-400" />
-                <span>Privilégie les petits formats 25cl</span>
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-white/5 text-xs text-slate-300">
+              <span>Options aromatiques (sirops, garnitures, herbes)</span>
+              <span className="text-[11px] text-slate-400 font-mono">Facultatif</span>
             </div>
 
-            {/* Aromatics Sections */}
-            <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1">
-              {/* Sirops */}
-              <div className="space-y-3">
-                <div className="text-xs font-mono uppercase text-purple-300 flex items-center gap-2">
-                  <span>Sirops aromatiques (gouttes et rondeur)</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {AROMATICS.filter((a) => a.category === 'sirop').map((item) => {
-                    const isSelected = selectedAromatics.includes(item.name);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleToggleAromatic(item.name)}
-                        className={`p-3 rounded-xl text-left transition-all ${
-                          isSelected
-                            ? 'bg-purple-500/20 border-2 border-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.25)] text-white'
-                            : 'glass-panel-interactive border border-white/10 hover:border-white/20 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold truncate">{item.name}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-purple-300 shrink-0" />}
-                        </div>
-                        <p className="text-[10px] text-slate-400 line-clamp-2">
-                          {item.description}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Garnitures & Fruits */}
-              <div className="space-y-3">
-                <div className="text-xs font-mono uppercase text-cyan-300 flex items-center gap-2">
-                  <span>Fruits frais & garnitures</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {AROMATICS.filter((a) => a.category === 'garniture').map((item) => {
-                    const isSelected = selectedAromatics.includes(item.name);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleToggleAromatic(item.name)}
-                        className={`p-3 rounded-xl text-left transition-all ${
-                          isSelected
-                            ? 'bg-cyan-500/20 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)] text-white'
-                            : 'glass-panel-interactive border border-white/10 hover:border-white/20 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold truncate">{item.name}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-cyan-300 shrink-0" />}
-                        </div>
-                        <p className="text-[10px] text-slate-400 line-clamp-2">
-                          {item.description}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Autres */}
-              <div className="space-y-3">
-                <div className="text-xs font-mono uppercase text-emerald-300 flex items-center gap-2">
-                  <span>Herbes fraîches, glaçons & essentiels</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {AROMATICS.filter((a) => a.category === 'autre').map((item) => {
-                    const isSelected = selectedAromatics.includes(item.name);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleToggleAromatic(item.name)}
-                        className={`p-3 rounded-xl text-left transition-all ${
-                          isSelected
-                            ? 'bg-emerald-500/20 border-2 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)] text-white'
-                            : 'glass-panel-interactive border border-white/10 hover:border-white/20 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold truncate">{item.name}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-emerald-300 shrink-0" />}
-                        </div>
-                        <p className="text-[10px] text-slate-400 line-clamp-2">
-                          {item.description}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[340px] overflow-y-auto pr-1">
+              {AROMATICS.map((a) => {
+                const isSelected = selectedAromatics.includes(a.name);
+                return (
+                  <div
+                    key={a.id}
+                    onClick={() => handleToggleAromatic(a.name)}
+                    className={`cursor-pointer p-3 rounded-2xl border transition-all ${
+                      isSelected
+                        ? 'bg-white/15 border-white/30 text-white shadow-sm'
+                        : 'glass-panel-subtle border-white/5 text-slate-300 hover:border-white/15'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-slate-400 uppercase font-mono">{a.subCategory}</span>
+                      {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                    </div>
+                    <div className="text-xs font-bold truncate">{a.name}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* STEP 4: FLAVOR PROFILE & SLIDERS */}
+        {/* STEP 4: PROFILES & SLIDERS */}
         {currentStep === 4 && (
-          <div className="space-y-8">
-            <div className="pb-4 border-b border-white/5">
-              <h2 className="font-display font-bold text-xl text-white">
-                Étape 4 : Définis ton profil aromatique & curseurs
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Guide l’IA vers l’équilibre parfait entre douceur, intensité fruitée et audace.
-              </p>
-            </div>
-
-            {/* 10 Flavor Profiles Grid */}
-            <div className="space-y-3">
-              <label className="text-xs font-mono uppercase text-slate-400">
-                Choisis un profil aromatique directeur :
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                {FLAVOR_PROFILES.map((profile) => {
-                  const isSelected = selectedProfile === profile.name;
+          <div className="space-y-5">
+            <div>
+              <div className="text-xs text-slate-300 mb-2">Univers aromatique directeur :</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[180px] overflow-y-auto pr-1">
+                {FLAVOR_PROFILES.map((p) => {
+                  const isSelected = selectedProfile === p.name;
                   return (
                     <div
-                      key={profile.id}
-                      onClick={() => setSelectedProfile(profile.name)}
-                      className={`cursor-pointer p-3.5 rounded-2xl transition-all relative overflow-hidden flex flex-col justify-between ${
+                      key={p.id}
+                      onClick={() => {
+                        sounds.playTap();
+                        setSelectedProfile(p.name);
+                      }}
+                      className={`cursor-pointer p-2.5 rounded-xl border text-left transition-all ${
                         isSelected
-                          ? `bg-slate-900/90 border-2 ${profile.borderClass} shadow-[0_0_20px_rgba(6,182,212,0.3)]`
-                          : 'glass-panel-interactive border border-white/10 hover:border-white/20'
+                          ? 'bg-white/15 border-white/30 text-white shadow-sm'
+                          : 'glass-panel-subtle border-white/5 text-slate-300'
                       }`}
                     >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400">
-                            {profile.shortTag}
-                          </span>
-                          <span
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: profile.color }}
-                          />
-                        </div>
-                        <h4 className="font-display font-bold text-xs text-white leading-tight">
-                          {profile.name}
-                        </h4>
-                        <p className="text-[10px] text-slate-300 line-clamp-3">
-                          {profile.description}
-                        </p>
-                      </div>
-
-                      {isSelected && (
-                        <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-mono text-cyan-300">
-                          <span>Sélectionné</span>
-                          <Check className="w-3 h-3" />
-                        </div>
-                      )}
+                      <div className="text-xs font-semibold truncate">{p.name}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{p.shortTag}</div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Sliders Box */}
-            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Fruité */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-300">Intensité fruitée</span>
-                    <span className="text-cyan-300 font-bold">{fruitiness}/5</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    value={fruitiness}
-                    onChange={(e) => setFruitiness(parseInt(e.target.value, 10))}
-                    className="w-full accent-cyan-400 cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                    <span>Légère</span>
-                    <span>Modérée</span>
-                    <span>Intense</span>
-                  </div>
+            {/* Sliders */}
+            <div className="space-y-3 pt-3 border-t border-white/5">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-300">
+                  <span>Intensité fruitée :</span>
+                  <span className="font-bold text-white">{fruitiness}/5</span>
                 </div>
-
-                {/* Sucre */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-300">Niveau de sucre</span>
-                    <span className="text-fuchsia-300 font-bold">{sweetness}/5</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    value={sweetness}
-                    onChange={(e) => setSweetness(parseInt(e.target.value, 10))}
-                    className="w-full accent-fuchsia-400 cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                    <span>Sec / Peu sucré</span>
-                    <span>Équilibré</span>
-                    <span>Très gourmand</span>
-                  </div>
-                </div>
-
-                {/* Originalité */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-slate-300">Originalité</span>
-                    <span className="text-purple-300 font-bold">{originality}/5</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    step="1"
-                    value={originality}
-                    onChange={(e) => setOriginality(parseInt(e.target.value, 10))}
-                    className="w-full accent-purple-400 cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                    <span>Classique revisité</span>
-                    <span>Signature</span>
-                    <span>Inattendu</span>
-                  </div>
-                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={fruitiness}
+                  onChange={(e) => setFruitiness(parseInt(e.target.value, 10))}
+                  className="w-full accent-white cursor-pointer"
+                />
               </div>
 
-              {/* Crowd Pleaser preference */}
-              <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-white">
-                    Préférence de groupe consensuelle
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    « Je veux que plusieurs personnes puissent aimer ce cocktail »
-                  </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-300">
+                  <span>Niveau de douceur :</span>
+                  <span className="font-bold text-white">{sweetness}/5</span>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={crowdPleaser}
-                    onChange={(e) => setCrowdPleaser(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
-                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={sweetness}
+                  onChange={(e) => setSweetness(parseInt(e.target.value, 10))}
+                  className="w-full accent-white cursor-pointer"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-slate-300">
+                  <span>Audace / Originalité :</span>
+                  <span className="font-bold text-white">{originality}/5</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={originality}
+                  onChange={(e) => setOriginality(parseInt(e.target.value, 10))}
+                  className="w-full accent-white cursor-pointer"
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* STEP FOOTER NAVIGATION & GENERATE BUTTON */}
-        <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {currentStep > 1 && (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(currentStep - 1)}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium bg-white/5 hover:bg-white/10 text-slate-300 transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Précédent</span>
-              </button>
-            )}
+        {/* Footer Navigation */}
+        <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-between gap-2">
+          {currentStep > 1 ? (
+            <button
+              onClick={() => {
+                sounds.playTap();
+                setCurrentStep(currentStep - 1);
+              }}
+              className="px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-white/5"
+            >
+              Précédent
+            </button>
+          ) : <div />}
 
-            {currentStep < 4 ? (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(currentStep + 1)}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-all ml-auto sm:ml-0"
-              >
-                <span>Étape suivante</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            ) : null}
-          </div>
-
-          {/* MAIN GENERATE COCKTAILS BUTTON */}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isGenerating}
-            className="w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl font-display font-bold text-sm sm:text-base text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-fuchsia-300 hover:from-cyan-300 hover:to-white transition-all shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_45px_rgba(6,182,212,0.6)] disabled:opacity-50 active:scale-[0.98]"
-          >
-            <FlaskConical className={`w-5 h-5 ${isGenerating ? 'animate-spin' : ''}`} />
-            <span>
-              {isGenerating ? 'Analyse & Génération IA...' : 'Générer mes 3 cocktails'}
-            </span>
-            <Sparkles className="w-4 h-4 text-purple-700" />
-          </button>
+          {currentStep < 4 ? (
+            <button
+              onClick={() => {
+                sounds.playTap();
+                setCurrentStep(currentStep + 1);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-white/15 hover:bg-white/20 transition-all flex items-center gap-1"
+            >
+              <span>Suivant</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isGenerating}
+              className="px-6 py-2.5 rounded-full text-xs font-bold text-slate-950 bg-white hover:bg-slate-100 transition-all shadow-md active:scale-[0.98] disabled:opacity-50 flex items-center gap-2"
+            >
+              <FlaskConical className="w-3.5 h-3.5" />
+              <span>{isGenerating ? 'Création...' : 'Générer les cocktails'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

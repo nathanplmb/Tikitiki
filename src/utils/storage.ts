@@ -1,15 +1,15 @@
-import { CocktailRecipe, UserBarItem, ShoppingItem } from '../types/cocktail';
+import { CocktailRecipe, UserBarItem, ShoppingItem, UserTastePreferences, PartyPlan } from '../types/cocktail';
 import { INITIAL_CURATED_COCKTAILS } from '../data/curatedCocktails';
-import { ALCOHOL_BASES, MIXERS, AROMATICS } from '../data/ingredients';
 
 const STORAGE_KEYS = {
-  FAVORITES: 'mixlab_favorites_v1',
-  HISTORY: 'mixlab_history_v1',
-  BAR: 'mixlab_user_bar_v1',
-  SHOPPING: 'mixlab_shopping_list_v1',
+  FAVORITES: 'mixlab_favorites_v2',
+  HISTORY: 'mixlab_history_v2',
+  BAR: 'mixlab_user_bar_v2',
+  SHOPPING: 'mixlab_shopping_list_v2',
+  PREFERENCES: 'mixlab_taste_preferences_v2',
+  PARTY_PLAN: 'mixlab_party_plan_v2',
 };
 
-// Initial default bar items
 const DEFAULT_BAR_ITEMS: UserBarItem[] = [
   { id: 'vodka-classique', name: 'Vodka classique', category: 'alcool', inStock: true },
   { id: 'rhum-blanc', name: 'Rhum blanc', category: 'alcool', inStock: true },
@@ -23,11 +23,21 @@ const DEFAULT_BAR_ITEMS: UserBarItem[] = [
   { id: 'menthe-fraiche', name: 'Feuilles de menthe', category: 'garniture', inStock: true },
 ];
 
+const DEFAULT_PREFERENCES: UserTastePreferences = {
+  preferredSweetness: 3,
+  preferredFruitiness: 4,
+  preferredOriginality: 3,
+  favoriteBases: ['Vodka classique', 'Gin'],
+  dislikedIngredients: [],
+  preferMocktails: false,
+  lastUpdated: new Date().toISOString(),
+};
+
+// FAVORITES
 export function getFavorites(): CocktailRecipe[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FAVORITES);
     if (!raw) {
-      // Seed with curated cocktails on first run
       saveFavorites(INITIAL_CURATED_COCKTAILS);
       return INITIAL_CURATED_COCKTAILS;
     }
@@ -41,10 +51,11 @@ export function saveFavorites(favorites: CocktailRecipe[]): void {
   try {
     localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
   } catch (e) {
-    console.error('Failed to save favorites to localStorage', e);
+    console.error('Failed to save favorites', e);
   }
 }
 
+// HISTORY
 export function getHistory(): CocktailRecipe[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.HISTORY);
@@ -58,7 +69,6 @@ export function getHistory(): CocktailRecipe[] {
 export function appendHistory(recipes: CocktailRecipe[]): void {
   try {
     const current = getHistory();
-    // Prepend new recipes, deduplicate by id, keep max 20
     const combined = [...recipes, ...current.filter((c) => !recipes.some((r) => r.id === c.id))];
     localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(combined.slice(0, 20)));
   } catch (e) {
@@ -66,6 +76,7 @@ export function appendHistory(recipes: CocktailRecipe[]): void {
   }
 }
 
+// USER BAR
 export function getUserBar(): UserBarItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.BAR);
@@ -87,6 +98,7 @@ export function saveUserBar(items: UserBarItem[]): void {
   }
 }
 
+// SHOPPING LIST
 export function getShoppingList(): ShoppingItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SHOPPING);
@@ -105,7 +117,7 @@ export function saveShoppingList(items: ShoppingItem[]): void {
   }
 }
 
-export function addRecipeToShoppingList(recipe: CocktailRecipe): ShoppingItem[] {
+export function addRecipeToShoppingList(recipe: CocktailRecipe, servingsMultiplier: number = 1): ShoppingItem[] {
   const current = getShoppingList();
   const updated = [...current];
 
@@ -121,7 +133,8 @@ export function addRecipeToShoppingList(recipe: CocktailRecipe): ShoppingItem[] 
         name: ing.name,
         category: ing.category,
         recipesUsing: [recipe.name],
-        formatNote: ing.formatAdvice || (ing.category === 'sirop' ? 'Privilégier un petit format' : undefined),
+        formatNote: ing.formatAdvice || (ing.category === 'sirop' ? 'Privilégier un petit format 25cl' : undefined),
+        totalQuantity: ing.amount,
         checked: false,
       });
     }
@@ -129,4 +142,77 @@ export function addRecipeToShoppingList(recipe: CocktailRecipe): ShoppingItem[] 
 
   saveShoppingList(updated);
   return updated;
+}
+
+// USER TASTE PREFERENCES
+export function getTastePreferences(): UserTastePreferences {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PREFERENCES);
+    if (!raw) return DEFAULT_PREFERENCES;
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_PREFERENCES;
+  }
+}
+
+export function saveTastePreferences(prefs: UserTastePreferences): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PREFERENCES, JSON.stringify(prefs));
+  } catch (e) {
+    console.error('Failed to save taste preferences', e);
+  }
+}
+
+export function resetTastePreferences(): UserTastePreferences {
+  saveTastePreferences(DEFAULT_PREFERENCES);
+  return DEFAULT_PREFERENCES;
+}
+
+// PARTY PLAN
+export function getPartyPlan(): PartyPlan | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PARTY_PLAN);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function savePartyPlan(plan: PartyPlan): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.PARTY_PLAN, JSON.stringify(plan));
+  } catch (e) {
+    console.error('Failed to save party plan', e);
+  }
+}
+
+// EXPORT / BACKUP JSON FOR CLOUD SYNC READINESS
+export function exportUserDataJSON(): string {
+  const data = {
+    version: '2.0',
+    exportedAt: new Date().toISOString(),
+    favorites: getFavorites(),
+    history: getHistory(),
+    userBar: getUserBar(),
+    shoppingList: getShoppingList(),
+    preferences: getTastePreferences(),
+    partyPlan: getPartyPlan(),
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+export function importUserDataJSON(jsonString: string): boolean {
+  try {
+    const data = JSON.parse(jsonString);
+    if (data.favorites && Array.isArray(data.favorites)) saveFavorites(data.favorites);
+    if (data.userBar && Array.isArray(data.userBar)) saveUserBar(data.userBar);
+    if (data.shoppingList && Array.isArray(data.shoppingList)) saveShoppingList(data.shoppingList);
+    if (data.preferences) saveTastePreferences(data.preferences);
+    if (data.partyPlan) savePartyPlan(data.partyPlan);
+    return true;
+  } catch (err) {
+    console.error('Failed to import user data JSON:', err);
+    return false;
+  }
 }

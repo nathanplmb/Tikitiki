@@ -3,11 +3,9 @@ import {
   Wine, 
   Plus, 
   Check, 
-  Sparkles, 
-  FlaskConical, 
   Trash2, 
-  ShoppingBag,
-  RotateCcw
+  FlaskConical,
+  Edit2
 } from 'lucide-react';
 import { UserBarItem } from '../types/cocktail';
 import { sounds } from '../utils/audio';
@@ -31,10 +29,10 @@ export const MyBarView: React.FC<MyBarViewProps> = ({
   const [newItemName, setNewItemName] = useState<string>('');
 
   const categories: { id: UserBarItem['category']; label: string }[] = [
-    { id: 'alcool', label: 'Bases Alcoolisées' },
-    { id: 'diluant', label: 'Diluants & Sodas' },
+    { id: 'alcool', label: 'Bases & Alcools' },
+    { id: 'diluant', label: 'Diluants & Softs' },
     { id: 'sirop', label: 'Sirops' },
-    { id: 'garniture', label: 'Garnitures & Fruits' },
+    { id: 'garniture', label: 'Fruits & Herbes' },
   ];
 
   const handleAddNew = (e: React.FormEvent) => {
@@ -55,38 +53,33 @@ export const MyBarView: React.FC<MyBarViewProps> = ({
   const filteredItems = userBar.filter((item) => item.category === activeCategory);
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Title */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-mono">
-            <Wine className="w-3.5 h-3.5" />
-            <span>INVENTAIRE DU BAR</span>
-          </div>
-          <h1 className="font-display font-extrabold text-2xl sm:text-4xl text-white">
-            Mon Bar Personnel
+    <div className="space-y-6 pb-20">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <h1 className="font-display font-bold text-2xl text-white">
+            Mon Bar
           </h1>
-          <p className="text-xs sm:text-sm text-slate-300">
-            Coche les bouteilles et softs en réserve chez toi pour générer des recettes sans rien acheter de plus.
+          <p className="text-xs text-slate-400">
+            {stockedItems.length} ingrédient{stockedItems.length > 1 ? 's' : ''} en réserve. Coche ceux que tu possèdes déjà.
           </p>
         </div>
 
-        {/* Generate with my bar button */}
         <button
           onClick={() => {
-            sounds.playSuccessChime();
+            sounds.playGlassClink();
             onGenerateFromBar(stockedBases, stockedMixers, stockedAromatics);
           }}
           disabled={stockedBases.length === 0}
-          className="w-full sm:w-auto px-5 py-3 rounded-2xl font-display font-bold text-xs sm:text-sm text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-fuchsia-300 hover:from-cyan-300 hover:to-white transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full sm:w-auto px-5 py-2.5 rounded-full text-xs font-bold text-slate-950 bg-white hover:bg-slate-100 transition-all shadow-md active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-1.5"
         >
-          <FlaskConical className="w-4 h-4" />
-          <span>Créer avec mon bar ({stockedItems.length} en stock)</span>
+          <FlaskConical className="w-3.5 h-3.5" />
+          <span>Créer avec mon bar ({stockedItems.length})</span>
         </button>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      {/* Categories */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
         {categories.map((cat) => {
           const count = userBar.filter((i) => i.category === cat.id && i.inStock).length;
           const isActive = activeCategory === cat.id;
@@ -97,18 +90,14 @@ export const MyBarView: React.FC<MyBarViewProps> = ({
                 sounds.playTap();
                 setActiveCategory(cat.id);
               }}
-              className={`px-4 py-2.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 isActive
-                  ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.25)]'
-                  : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/5'
+                  ? 'bg-white/20 text-white font-semibold'
+                  : 'bg-white/5 text-slate-400 hover:text-slate-200'
               }`}
             >
               <span>{cat.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  isActive ? 'bg-cyan-400 text-slate-950' : 'bg-white/10 text-slate-400'
-                }`}
-              >
+              <span className={`text-[10px] px-1.5 rounded-full ${isActive ? 'bg-white/20' : 'bg-white/5'}`}>
                 {count}
               </span>
             </button>
@@ -116,26 +105,26 @@ export const MyBarView: React.FC<MyBarViewProps> = ({
         })}
       </div>
 
-      {/* Add New Item Form */}
+      {/* Add input form */}
       <form onSubmit={handleAddNew} className="flex gap-2">
         <input
           type="text"
-          placeholder={`Ajouter un ${activeCategory === 'alcool' ? 'alcool' : activeCategory === 'diluant' ? 'diluant' : 'ingrédient'} (ex. Cointreau, Sprite, Sirop de cerise)...`}
+          placeholder={`Ajouter un ${activeCategory === 'alcool' ? 'alcool' : 'ingrédient'} (ex: Mezcal, Soda pamplemousse)...`}
           value={newItemName}
           onChange={(e) => setNewItemName(e.target.value)}
-          className="flex-1 bg-slate-950/70 border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+          className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
         />
         <button
           type="submit"
-          className="px-5 py-2.5 rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white flex items-center gap-1.5 transition-all shrink-0"
+          className="px-4 py-2 rounded-2xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white flex items-center gap-1 shrink-0"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
           <span>Ajouter</span>
         </button>
       </form>
 
-      {/* Grid of items */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+      {/* Items list */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {filteredItems.map((item) => (
           <div
             key={item.id}
@@ -143,28 +132,23 @@ export const MyBarView: React.FC<MyBarViewProps> = ({
               sounds.playTap();
               onToggleStock(item.id);
             }}
-            className={`cursor-pointer p-4 rounded-2xl transition-all flex items-center justify-between border ${
+            className={`cursor-pointer p-3 rounded-2xl transition-all flex items-center justify-between border ${
               item.inStock
-                ? 'bg-cyan-500/10 border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.15)] text-white'
-                : 'glass-panel-subtle border-white/5 text-slate-400 hover:border-white/15'
+                ? 'bg-white/[0.08] border-white/20 text-white'
+                : 'glass-panel-subtle border-white/5 text-slate-400'
             }`}
           >
-            <div className="flex items-center gap-3 min-w-0 pr-2">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
               <div
-                className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
                   item.inStock
-                    ? 'bg-cyan-400 text-slate-950'
+                    ? 'bg-emerald-500 text-slate-950'
                     : 'border border-white/20 bg-white/5'
                 }`}
               >
-                {item.inStock && <Check className="w-4 h-4 stroke-[3]" />}
+                {item.inStock && <Check className="w-3.5 h-3.5 stroke-[3]" />}
               </div>
-              <div className="truncate">
-                <div className="text-xs font-bold truncate">{item.name}</div>
-                <div className="text-[10px] font-mono text-slate-500">
-                  {item.inStock ? 'Disponible' : 'Non possédé'}
-                </div>
-              </div>
+              <div className="truncate text-xs font-medium">{item.name}</div>
             </div>
 
             <button
@@ -173,7 +157,7 @@ export const MyBarView: React.FC<MyBarViewProps> = ({
                 sounds.playTap();
                 onRemoveItem(item.id);
               }}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-white/5 transition-colors"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400"
               title="Supprimer"
             >
               <Trash2 className="w-3.5 h-3.5" />

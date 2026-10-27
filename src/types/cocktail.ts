@@ -1,13 +1,14 @@
 export type CocktailType = 'consensuelle' | 'signature' | 'audacieuse';
+export type CocktailSource = 'reference' | 'gemini_ia' | 'user_custom' | 'party_menu';
 
 export interface IngredientItem {
   name: string;
-  amount: string; // e.g. "5 cl", "10 cl", "2 cl", "1 tranche"
+  amount: string; // e.g. "4 cl", "12 cl", "1 tranche"
   unit?: string;
   category: 'alcool' | 'diluant' | 'sirop' | 'garniture' | 'autre';
-  supermarketCommon: boolean; // readily found in French supermarkets
+  supermarketCommon: boolean;
   estimatedPrice?: string;
-  formatAdvice?: string; // e.g. "Préférer petit format 25cl"
+  formatAdvice?: string;
   optional?: boolean;
 }
 
@@ -19,19 +20,22 @@ export interface EstimatedCost {
   note: string;
 }
 
+export interface TasteProfile {
+  primaryNotes: string[];
+  sweetness: number; // 1-5
+  fruitiness: number; // 1-5
+  originality: number; // 1-5
+  profileName: string;
+  colorTheme?: 'dark-berry' | 'tropical' | 'citrus-fresh' | 'floral' | 'botanical-bitter' | 'spiced-warm' | 'mystic-dark';
+}
+
 export interface CocktailRecipe {
   id: string;
   name: string;
   type: CocktailType;
   tagline: string;
   description: string;
-  tasteProfile: {
-    primaryNotes: string[];
-    sweetness: number; // 1-5
-    fruitiness: number; // 1-5
-    originality: number; // 1-5
-    profileName: string;
-  };
+  tasteProfile: TasteProfile;
   ingredients: IngredientItem[];
   steps: string[];
   glassType: string;
@@ -39,20 +43,26 @@ export interface CocktailRecipe {
   difficulty: 'Très facile' | 'Facile' | 'Moyen';
   distinctIngredientsCount: number;
   estimatedCost: EstimatedCost;
-  aromaticCoherence: string; // Why the combination works
-  simplerAlternative: string; // Consensual or simplified fallback
-  mocktailVariant: string; // Non-alcoholic version
+  aromaticCoherence: string;
+  simplerAlternative: string;
+  mocktailVariant: string;
+  isMocktailOnly?: boolean;
   allergens: string[];
-  alcoholEstimate: string; // e.g. "Modéré (~9% vol.)"
+  alcoholEstimate: string; // e.g. "Modéré (~9% vol.)" ou "0.0% Sans alcool"
   imageUrl: string;
   isExample?: boolean;
+  source?: CocktailSource;
+  testedByUser?: boolean;
   createdAt?: string;
   userRating?: number; // 1-5
   userTags?: string[]; // e.g. ["Parfait", "À refaire"]
   userNotes?: string;
+  timerSeconds?: number; // optional timer in seconds for shaking or infusion
 }
 
 export interface CreationConfig {
+  freeIntent?: string; // e.g. "un cocktail acidulé, élégant et peu sucré"
+  isMocktailMode?: boolean; // First-class non-alcoholic mode
   selectedBases: string[];
   singleBottleOnly: boolean;
   selectedMixers: string[];
@@ -61,13 +71,14 @@ export interface CreationConfig {
   fruitiness: number; // 1-5
   sweetness: number; // 1-5
   originality: number; // 1-5
-  crowdPleaser: boolean; // "Je veux que plusieurs personnes puissent aimer ce cocktail"
+  crowdPleaser: boolean;
+  servings?: number;
   advancedFilters: {
     budgetLimit: 'low' | 'medium' | 'any';
     servings: number;
     maxBottlesToCarry: number;
     useBarOnly: boolean;
-    prepTimeMax: number; // in minutes, 0 = any
+    prepTimeMax: number;
     frenchSupermarketOnly: boolean;
     noSyrup: boolean;
     noFreshFruits: boolean;
@@ -80,13 +91,41 @@ export interface UserBarItem {
   name: string;
   category: 'alcool' | 'diluant' | 'sirop' | 'garniture';
   inStock: boolean;
+  brand?: string;
+  openedDate?: string;
 }
 
 export interface ShoppingItem {
   id: string;
   name: string;
   category: 'alcool' | 'diluant' | 'sirop' | 'garniture' | 'autre';
-  recipesUsing: string[]; // cocktail names
+  recipesUsing: string[];
   formatNote?: string;
+  totalQuantity?: string;
+  estimatedCost?: string;
   checked: boolean;
+}
+
+export interface UserTastePreferences {
+  preferredSweetness: number; // 1-5
+  preferredFruitiness: number; // 1-5
+  preferredOriginality: number; // 1-5
+  favoriteBases: string[];
+  dislikedIngredients: string[];
+  preferMocktails: boolean;
+  lastUpdated: string;
+}
+
+export interface PartyPlan {
+  guestCount: number;
+  budgetTotalEur: number;
+  theme: string;
+  recipes: CocktailRecipe[];
+  mocktailRecipe?: CocktailRecipe;
+  consolidatedShopping: {
+    item: string;
+    bottlesNeeded: string;
+    category: string;
+  }[];
+  prepTimeline: string[];
 }
